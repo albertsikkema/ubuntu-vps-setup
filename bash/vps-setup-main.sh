@@ -29,6 +29,10 @@ if [[ -f "$SCRIPT_DIR/.setup_env" ]]; then
     source "$SCRIPT_DIR/.setup_env"
     if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
         AUTO_MODE=true
+        export SETUP_AUTO_MODE=true
+        # Export key variables for modules
+        export SETUP_USERNAME="${SETUP_USERNAME:-admin}"
+        export SETUP_SSH_PORT="${SETUP_SSH_PORT:-2222}"
     fi
 fi
 
@@ -63,6 +67,7 @@ parse_args() {
             --auto|-a)
                 AUTO_MODE=true
                 QUICK_MODE=true
+                export SETUP_AUTO_MODE=true
                 shift
                 ;;
             --dry-run|-d)
