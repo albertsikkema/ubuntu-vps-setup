@@ -108,6 +108,7 @@ Available modules:
     docker_ufw           Docker-UFW Integration Fix
 
 Example: $0 --modules system_update,ssh_hardening,firewall
+EOF
 }
 
 # Display interactive menu
