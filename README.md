@@ -2,13 +2,22 @@
 
 🚀 **Complete automated setup for production-ready Ubuntu 24.10 VPS with security hardening, Docker support, and proper firewall configuration.**
 
-## ⚡ Quick Start - One-Liner
+## ⚡ Quick Start
 
+### Option 1: One-Liner (Recommended)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/bash/setup.sh | sudo bash -s -- --auto
 ```
 
-This single command will:
+### Option 2: Download and Run Locally
+```bash
+wget "https://github.com/albertsikkema/ubuntu-vps-setup/archive/refs/heads/main.tar.gz"
+tar -xzf main.tar.gz
+cd ubuntu-vps-setup-main/bash
+sudo ./setup.sh --auto
+```
+
+Both commands will:
 - ✅ Update and secure your Ubuntu 24.10 VPS
 - ✅ Install Docker with UFW integration
 - ✅ Set up comprehensive monitoring and backups
