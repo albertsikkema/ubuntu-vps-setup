@@ -258,7 +258,7 @@ main() {
     change_ssh_port
     configure_ssh_security
     configure_ssh_access
-    configure_2fa
+    # configure_2fa
     regenerate_host_keys
     configure_ssh_banner
     
