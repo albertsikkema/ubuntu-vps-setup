@@ -102,6 +102,11 @@ configure_essential_services() {
 
 # Configure custom ports
 configure_custom_ports() {
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        log "Auto mode: Skipping additional port configuration" "$BLUE"
+        return
+    fi
+    
     log "Configure additional ports..."
     
     while true; do
@@ -141,6 +146,11 @@ configure_custom_ports() {
 
 # Configure IP-based rules
 configure_ip_rules() {
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        log "Auto mode: Skipping IP-based firewall rules" "$BLUE"
+        return
+    fi
+    
     if confirm "Add IP-based firewall rules?"; then
         log "Configure IP-based access rules..."
         
@@ -185,15 +195,20 @@ configure_ip_rules() {
 configure_logging() {
     log "Configuring firewall logging..."
     
-    echo "Select logging level:"
-    echo "1) Off"
-    echo "2) Low"
-    echo "3) Medium (default)"
-    echo "4) High"
-    echo "5) Full"
-    
-    read -p "Choose option [3]: " level
-    level=${level:-3}
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        level=3  # Default to medium logging
+        log "Auto mode: Using medium logging level" "$BLUE"
+    else
+        echo "Select logging level:"
+        echo "1) Off"
+        echo "2) Low"
+        echo "3) Medium (default)"
+        echo "4) High"
+        echo "5) Full"
+        
+        read -p "Choose option [3]: " level
+        level=${level:-3}
+    fi
     
     case $level in
         1) ufw logging off ;;

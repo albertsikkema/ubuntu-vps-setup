@@ -156,6 +156,7 @@ confirm() {
         *"sudo without password"*) prompt_key="SETUP_PASSWORDLESS_SUDO" ;;
         *"Allow HTTP"*) prompt_key="SETUP_ALLOW_HTTP" ;;
         *"Allow HTTPS"*) prompt_key="SETUP_ALLOW_HTTPS" ;;
+        *"IP-based firewall rules"*) prompt_key="SETUP_ADD_IP_RULES" ;;
         *"Two-Factor Authentication"*) prompt_key="SETUP_ENABLE_2FA" ;;
         *"Regenerate SSH host keys"*) prompt_key="SETUP_REGENERATE_HOST_KEYS" ;;
         *"login banner"*) prompt_key="SETUP_ADD_LOGIN_BANNER" ;;
