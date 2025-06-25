@@ -20,6 +20,32 @@ check_prerequisites() {
         error_exit "Docker is not installed. Please run the Docker installation module first."
     fi
     
+    # Check if Docker daemon is running
+    if ! systemctl is-active docker.service > /dev/null 2>&1; then
+        log "Docker daemon is not running, attempting to start..." "$YELLOW"
+        if systemctl start docker.service; then
+            log "Docker daemon started successfully"
+            sleep 3  # Give Docker time to fully start
+        else
+            if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+                log "Auto mode: Docker daemon failed to start, skipping docker-ufw integration" "$YELLOW"
+                return 0
+            else
+                error_exit "Docker daemon failed to start. Cannot proceed with Docker-UFW integration."
+            fi
+        fi
+    fi
+    
+    # Verify Docker is responsive
+    if ! docker info > /dev/null 2>&1; then
+        if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+            log "Auto mode: Docker is not responsive, skipping docker-ufw integration" "$YELLOW"
+            return 0
+        else
+            error_exit "Docker is not responsive. Cannot proceed with Docker-UFW integration."
+        fi
+    fi
+    
     # Check UFW
     if ! command_exists ufw; then
         error_exit "UFW is not installed. Please run the firewall module first."
