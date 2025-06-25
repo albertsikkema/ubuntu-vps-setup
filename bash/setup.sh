@@ -173,7 +173,7 @@ process_config_file() {
             log "Loading configuration from: $CONFIG_FILE" "$BLUE"
             
             # Source the config parser and load the file
-            source "$TEMP_DIR/modules/config_parser.sh"
+            source "$TEMP_DIR/bash/modules/config_parser.sh"
             
             if load_config "$CONFIG_FILE"; then
                 # Validate configuration
@@ -243,19 +243,35 @@ download_repo() {
         rm -rf "$TEMP_DIR"
     fi
     
-    git clone -b "$REPO_BRANCH" "$REPO_URL" "$TEMP_DIR" > /dev/null 2>&1 || {
+    if git clone -b "$REPO_BRANCH" "$REPO_URL" "$TEMP_DIR" > /dev/null 2>&1; then
+        log "Repository cloned successfully"
+    else
         # Fallback to wget if git fails
         log "Git clone failed, trying wget..." "$YELLOW"
         mkdir -p "$TEMP_DIR"
-        cd "$TEMP_DIR"
-        wget -q "$REPO_URL/archive/refs/heads/$REPO_BRANCH.tar.gz" -O repo.tar.gz
-        tar -xzf repo.tar.gz --strip-components=1
-        cd - > /dev/null
+        
+        local archive_url="$REPO_URL/archive/refs/heads/$REPO_BRANCH.tar.gz"
+        log "Downloading from: $archive_url"
+        
+        if wget -q "$archive_url" -O "$TEMP_DIR/repo.tar.gz"; then
+            cd "$TEMP_DIR"
+            tar -xzf repo.tar.gz --strip-components=1
+            rm repo.tar.gz
+            cd - > /dev/null
+            log "Repository downloaded via wget"
+        else
+            error_exit "Failed to download repository from $archive_url"
+        fi
     }
     
+    # Verify files were downloaded (they should be in bash/ subdirectory)
+    if [[ ! -f "$TEMP_DIR/bash/vps-setup-main.sh" ]]; then
+        error_exit "Main setup script not found at $TEMP_DIR/bash/vps-setup-main.sh. Check repository structure."
+    fi
+    
     # Make scripts executable
-    chmod +x "$TEMP_DIR"/*.sh
-    chmod +x "$TEMP_DIR"/modules/*.sh 2>/dev/null || true
+    find "$TEMP_DIR/bash" -name "*.sh" -type f -exec chmod +x {} \;
+    log "Scripts made executable"
     
     # Process configuration file if provided
     process_config_file
@@ -268,9 +284,9 @@ download_repo() {
 run_setup() {
     log "Starting VPS setup..."
     
-    # Check if main script exists
-    if [[ -f "$TEMP_DIR/vps-setup-main.sh" ]]; then
-        cd "$TEMP_DIR"
+    # Check if main script exists in bash subdirectory
+    if [[ -f "$TEMP_DIR/bash/vps-setup-main.sh" ]]; then
+        cd "$TEMP_DIR/bash"
         
         if [[ "$AUTO_MODE" == "true" ]]; then
             # Run in automated mode
