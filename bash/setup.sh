@@ -149,23 +149,32 @@ configure_locale_timezone() {
     timedatectl set-timezone UTC
     log "Timezone set to UTC"
     
-    # Configure locales - generate both English and Dutch
+    # Install locales package if not present
+    apt-get install -y locales
+    
+    # Configure locales - use simpler approach
     log "Generating required locales..."
     
-    # Ensure both locales are in locale.gen
-    if ! grep -q "en_US.UTF-8 UTF-8" /etc/locale.gen; then
-        echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
-    fi
+    # Backup locale.gen
+    cp /etc/locale.gen /etc/locale.gen.backup 2>/dev/null || true
     
-    if ! grep -q "nl_NL.UTF-8 UTF-8" /etc/locale.gen; then
-        echo "nl_NL.UTF-8 UTF-8" >> /etc/locale.gen
-    fi
+    # Ensure both locales are uncommented in locale.gen
+    sed -i 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+    sed -i 's/# nl_NL.UTF-8 UTF-8/nl_NL.UTF-8 UTF-8/' /etc/locale.gen
+    
+    # Add them if they don't exist at all
+    grep -q "^en_US.UTF-8 UTF-8" /etc/locale.gen || echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+    grep -q "^nl_NL.UTF-8 UTF-8" /etc/locale.gen || echo "nl_NL.UTF-8 UTF-8" >> /etc/locale.gen
     
     # Generate locales
     locale-gen
     
-    # Set primary language to English, but use Dutch formatting
-    cat > /etc/default/locale << EOF
+    # Verify Dutch locale was generated
+    if locale -a | grep -q "nl_NL.utf8"; then
+        log "Dutch locale successfully generated"
+        
+        # Set primary language to English, but use Dutch formatting
+        cat > /etc/default/locale << EOF
 LANG=en_US.UTF-8
 LANGUAGE=en_US:en
 LC_TIME=nl_NL.UTF-8
@@ -177,12 +186,24 @@ LC_CTYPE=en_US.UTF-8
 LC_COLLATE=en_US.UTF-8
 LC_MESSAGES=en_US.UTF-8
 EOF
-    
-    # Apply the locale settings immediately
-    source /etc/default/locale
-    export $(grep -v '^#' /etc/default/locale | xargs)
-    
-    log "Locale configured: English language with Dutch formatting"
+        
+        # Apply the locale settings immediately
+        source /etc/default/locale 2>/dev/null || true
+        
+        log "Locale configured: English language with Dutch formatting"
+    else
+        log "Dutch locale generation failed, using English only" "$YELLOW"
+        
+        # Fallback to English only
+        cat > /etc/default/locale << EOF
+LANG=en_US.UTF-8
+LANGUAGE=en_US:en
+LC_ALL=en_US.UTF-8
+EOF
+        
+        source /etc/default/locale 2>/dev/null || true
+        log "Fallback: Using English locale only"
+    fi
 }
 
 # Load and process configuration file
