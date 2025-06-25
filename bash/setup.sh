@@ -302,7 +302,7 @@ download_repo() {
         else
             error_exit "Failed to download repository from $archive_url"
         fi
-    }
+    fi
     
     # Verify files were downloaded (they should be in bash/ subdirectory)
     if [[ ! -f "$TEMP_DIR/bash/vps-setup-main.sh" ]]; then
