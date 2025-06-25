@@ -428,9 +428,9 @@ main() {
     harden_kernel
     
     # Security frameworks
-    configure_apparmor
-    configure_aide
-    configure_auditd
+    # configure_apparmor
+    # configure_aide
+    # configure_auditd
     
     # System hardening
     disable_unnecessary_services
