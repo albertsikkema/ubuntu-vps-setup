@@ -206,6 +206,21 @@ EOF
     fi
 }
 
+# Pre-configure packages to avoid interactive prompts
+configure_package_defaults() {
+    log "Pre-configuring package defaults..."
+    
+    # Pre-configure postfix (mail server)
+    echo "postfix postfix/mailname string $(hostname -f)" | debconf-set-selections
+    echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
+    
+    # Pre-configure other common packages
+    echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
+    echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
+    
+    log "Package defaults configured"
+}
+
 # Load and process configuration file
 process_config_file() {
     if [[ -n "$CONFIG_FILE" ]]; then
@@ -245,6 +260,10 @@ export SETUP_LOCALE="$DEFAULT_LOCALE"
 export SETUP_COUNTRY="$DEFAULT_COUNTRY"
 export SETUP_MODULES="$DEFAULT_MODULES"
 export SETUP_INTERACTIVE="$INTERACTIVE_MODE"
+export DEBIAN_FRONTEND="noninteractive"
+
+# Configure non-interactive package installation
+export DEBIAN_FRONTEND=noninteractive
 
 # Default responses for interactive prompts - COMPLETE AUTOMATION
 # System Update
@@ -267,6 +286,7 @@ export SETUP_RESET_FIREWALL="no"
 export SETUP_ALLOW_HTTP="yes"
 export SETUP_ALLOW_HTTPS="yes"
 export SETUP_CONFIGURE_ADVANCED_FIREWALL="no"
+export SETUP_ADD_IP_RULES="no"
 export SETUP_ENABLE_IPV6="no"
 export SETUP_ENABLE_FIREWALL="yes"
 
@@ -311,6 +331,9 @@ download_repo() {
     
     # Configure locale and timezone first
     configure_locale_timezone
+    
+    # Pre-configure common packages to avoid prompts
+    configure_package_defaults
     
     # Clone repository
     if [[ -d "$TEMP_DIR" ]]; then
