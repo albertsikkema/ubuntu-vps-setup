@@ -127,8 +127,17 @@ install_netdata() {
     if confirm "Install Netdata for real-time monitoring?"; then
         log "Installing Netdata..."
         
-        # Download and install netdata
-        bash <(curl -Ss https://my-netdata.io/kickstart.sh) --dont-wait --disable-telemetry
+        # Install netdata via package manager (more reliable)
+        if ! install_package netdata; then
+            log "Package manager installation failed, trying official installer..." "$YELLOW"
+            # Fallback to official installer with better error handling
+            if curl -fsSL https://get.netdata.cloud/kickstart.sh | bash -s -- --dont-wait --disable-telemetry 2>/dev/null; then
+                log "Netdata installed via official installer"
+            else
+                log "Netdata installation failed, skipping..." "$YELLOW"
+                return 0
+            fi
+        fi
         
         # Configure netdata
         backup_file /etc/netdata/netdata.conf
