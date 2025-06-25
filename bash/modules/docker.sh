@@ -155,7 +155,9 @@ configure_docker_user() {
     echo "Users with sudo access:"
     grep -E '^sudo:' /etc/group | cut -d: -f4 | tr ',' '\n' | grep -v '^$'
     
-    if confirm "Add users to docker group for non-root Docker access?"; then
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        log "Auto mode: Skipping user addition to docker group" "$BLUE"
+    elif confirm "Add users to docker group for non-root Docker access?"; then
         read -p "Enter usernames to add (space-separated): " users
         
         for user in $users; do
@@ -212,7 +214,15 @@ configure_docker_security() {
     
     # Enable user namespace remapping (optional)
     if confirm "Enable user namespace remapping for better security?"; then
-        echo '{"userns-remap": "default"}' | jq -s '.[0] * .[1]' /etc/docker/daemon.json - > /tmp/daemon.json
+        # Merge configuration without jq dependency
+        if [[ -f /etc/docker/daemon.json ]] && [[ -s /etc/docker/daemon.json ]]; then
+            # Backup and modify existing config
+            cp /etc/docker/daemon.json /etc/docker/daemon.json.backup
+            python3 -c "import json; d=json.load(open('/etc/docker/daemon.json')); d['userns-remap']='default'; json.dump(d, open('/tmp/daemon.json', 'w'), indent=2)"
+        else
+            # Create new config
+            echo '{"userns-remap": "default"}' > /tmp/daemon.json
+        fi
         mv /tmp/daemon.json /etc/docker/daemon.json
         
         log "User namespace remapping enabled"
