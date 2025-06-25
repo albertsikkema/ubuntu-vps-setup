@@ -198,7 +198,13 @@ configure_vnstat() {
     local interface=$(get_primary_interface)
     
     # Initialize vnstat database
-    vnstat -i "$interface" --create
+    if vnstat -i "$interface" --create 2>/dev/null; then
+        log "vnstat database created for interface $interface"
+    elif vnstat -u -i "$interface" 2>/dev/null; then
+        log "vnstat database initialized for interface $interface"
+    else
+        log "vnstat database initialization may have failed, but continuing..." "$YELLOW"
+    fi
     
     # Configure vnstat
     backup_file /etc/vnstat.conf
