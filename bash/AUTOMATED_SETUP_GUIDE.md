@@ -8,7 +8,7 @@ This guide shows you how to use the automated VPS setup tool that requires minim
 
 ### Full Automated Setup
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourusername/ubuntu-vps-setup/main/bash/setup.sh | sudo bash -s -- --auto
+curl -fsSL https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/bash/setup.sh | sudo bash -s -- --auto
 ```
 
 This command will:

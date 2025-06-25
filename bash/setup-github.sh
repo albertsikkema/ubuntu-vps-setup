@@ -65,7 +65,7 @@ EOF
 
 # Update setup.sh with your actual GitHub repository URL
 echo "IMPORTANT: Update the following in setup.sh:"
-echo "1. Replace 'yourusername' with your GitHub username"
+echo "1. Replace 'albertsikkema' with your GitHub username"
 echo "2. Replace 'ubuntu-vps-setup' with your repository name"
 echo ""
 echo "Example:"
@@ -97,9 +97,9 @@ fi
 # Download and run setup
 echo "Downloading setup script..."
 if command -v wget >/dev/null 2>&1; then
-    wget -O setup.sh https://raw.githubusercontent.com/yourusername/ubuntu-vps-setup/main/setup.sh
+    wget -O setup.sh https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/setup.sh
 elif command -v curl >/dev/null 2>&1; then
-    curl -fsSL -o setup.sh https://raw.githubusercontent.com/yourusername/ubuntu-vps-setup/main/setup.sh
+    curl -fsSL -o setup.sh https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/setup.sh
 else
     echo -e "${RED}Neither wget nor curl found. Please install one.${NC}"
     exit 1
@@ -143,7 +143,7 @@ echo "1. Update REPO_URL in setup.sh with your GitHub details"
 echo "2. Initialize git repository: git init"
 echo "3. Add files: git add ."
 echo "4. Commit: git commit -m 'Initial commit'"
-echo "5. Add remote: git remote add origin https://github.com/yourusername/ubuntu-vps-setup.git"
+echo "5. Add remote: git remote add origin https://github.com/albertsikkema/ubuntu-vps-setup.git"
 echo "6. Push: git push -u origin main"
 echo ""
 echo "Remember to update the README.md with your repository URL!"

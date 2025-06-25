@@ -9,13 +9,13 @@ A comprehensive CLI tool for setting up a production-ready Ubuntu 24.10 VPS with
 Run this one-liner for a complete set-and-forget setup:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourusername/ubuntu-vps-setup/main/bash/setup.sh | sudo bash -s -- --auto
+curl -fsSL https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/bash/setup.sh | sudo bash -s -- --auto
 ```
 
 Or download first:
 
 ```bash
-wget https://raw.githubusercontent.com/yourusername/ubuntu-vps-setup/main/bash/setup.sh
+wget https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/bash/setup.sh
 chmod +x setup.sh
 sudo ./setup.sh --auto
 ```
@@ -44,7 +44,7 @@ sudo ./setup.sh --auto --modules=docker,docker_ufw,firewall
 For manual control:
 
 ```bash
-wget https://raw.githubusercontent.com/yourusername/ubuntu-vps-setup/main/bash/setup.sh
+wget https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/bash/setup.sh
 chmod +x setup.sh
 sudo ./setup.sh
 ```
@@ -352,8 +352,8 @@ MIT License - See LICENSE file for details
 
 ## Support
 
-- Report issues: https://github.com/yourusername/ubuntu-vps-setup/issues
-- Documentation: https://github.com/yourusername/ubuntu-vps-setup/wiki
+- Report issues: https://github.com/albertsikkema/ubuntu-vps-setup/issues
+- Documentation: https://github.com/albertsikkema/ubuntu-vps-setup/wiki
 
 ## Disclaimer
 
