@@ -146,13 +146,7 @@ get_primary_ip() {
 confirm() {
     local prompt="${1:-Continue?}"
     
-    # Check for automated mode
-    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
-        log "Auto mode: Answering YES to: $prompt" "$BLUE"
-        return 0
-    fi
-    
-    # Check for specific automated responses
+    # Check for specific automated responses first
     local prompt_key=""
     case "$prompt" in
         *"change the hostname"*) prompt_key="SETUP_CHANGE_HOSTNAME" ;;
@@ -177,6 +171,12 @@ confirm() {
         log "Auto response for '$prompt': $response" "$BLUE"
         [[ "$response" =~ ^[Yy]|yes$ ]]
         return $?
+    fi
+    
+    # Check for general automated mode (fallback to YES for unmapped prompts)
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        log "Auto mode: Answering YES to: $prompt" "$BLUE"
+        return 0
     fi
     
     # Interactive prompt

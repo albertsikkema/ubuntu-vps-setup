@@ -149,6 +149,11 @@ configure_ssh_access() {
 
 # Configure 2FA (optional)
 configure_2fa() {
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        log "Auto mode: Skipping 2FA setup" "$BLUE"
+        return
+    fi
+    
     if confirm "Setup Two-Factor Authentication (2FA) for SSH?"; then
         log "Installing Google Authenticator..."
         install_package "libpam-google-authenticator"
