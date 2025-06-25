@@ -12,7 +12,7 @@
 >
 > By using this tool, you acknowledge that you understand these risks and accept full responsibility.
 
-🚀 **Complete automated setup for production-ready Ubuntu 24.10 VPS with security hardening, Docker support, and proper firewall configuration.**
+🚀 **Fast, focused setup for Ubuntu 24.10 VPS with Docker, SSH security, and firewall configuration.**
 
 ## ⚡ Quick Start
 
@@ -32,9 +32,9 @@ sudo ./setup.sh --auto
 Both commands will:
 - ✅ Update and secure your Ubuntu 24.10 VPS
 - ✅ Install Docker with UFW integration
-- ✅ Set up comprehensive monitoring and backups
+- ✅ Set up SSH hardening and firewall protection
 - ✅ Configure everything for Netherlands (nl-NL) with UTC timezone
-- ✅ Complete in 10-15 minutes with **zero user interaction**
+- ✅ Complete in 5-10 minutes with **minimal user interaction**
 
 ## 🎯 What You Get
 
@@ -42,19 +42,26 @@ Both commands will:
 - SSH hardening (port 2222, key-only auth)
 - UFW firewall with minimal attack surface
 - Docker containers protected by default
-- Full system hardening (kernel, AppArmor, fail2ban)
-
-### Monitoring & Backup
-- Real-time monitoring with Netdata
-- Process monitoring with Monit
-- Automated daily backups (system + Docker)
-- Log analysis and rotation
+- Essential security configurations
 
 ### Docker Integration
 - Docker CE + Compose from official repository
 - **Fixes Docker's UFW bypass security hole**
 - Use `ufw-docker` commands to manage container access
 - Containers NOT exposed to internet by default
+
+## 📦 Modules Installed
+
+The setup includes these 6 essential modules:
+
+| Module | Description | Purpose |
+|--------|-------------|---------|
+| **system_update** | System Update & Basic Setup | Updates packages, configures timezone/locale, installs essential tools |
+| **user_management** | User Management & Sudo Configuration | Creates secure sudo user with your credentials |
+| **ssh_hardening** | SSH Security Hardening | Secures SSH (port 2222, key-only auth, disable root) |
+| **firewall** | UFW Firewall Configuration | Sets up UFW firewall with HTTP/HTTPS access |
+| **docker** | Docker & Docker Compose Installation | Installs Docker CE + Compose from official repository |
+| **docker_ufw** | Docker-UFW Integration Fix | Fixes Docker's UFW bypass security issue |
 
 ## 📁 Repository Structure
 
@@ -111,8 +118,8 @@ sudo ./setup.sh
 - **SSH**: Port 2222, key-only auth, root disabled
 - **Firewall**: UFW with rate limiting
 - **Docker**: Containers protected by UFW
-- **System**: Kernel hardening, AppArmor, audit logs
-- **Monitoring**: Fail2ban, intrusion detection
+- **System**: Essential hardening, fail2ban
+- **User Management**: Secure sudo user creation
 
 ## 🔗 Quick Links
 
@@ -127,6 +134,8 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 ---
 
-**Perfect for:** VPS providers, system administrators, developers deploying to production, automated infrastructure setup.
+**Perfect for:** Developers needing a quick Docker-ready VPS, system administrators, simple production deployments.
 
-**Tested on:** Ubuntu 24.10, Ubuntu 24.04, Ubuntu 23.10
+**Tested on:** Ubuntu 24.10, Ubuntu 24.04
+
+**Features:** Fast setup (5-10 minutes), user-controlled credentials, essential security, Docker + UFW integration.
