@@ -267,7 +267,11 @@ test_docker_installation() {
         log "Docker is working correctly!" "$GREEN"
     else
         log "Docker test failed" "$RED"
-        return 1
+        if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+            log "Auto mode: Continuing despite Docker test failure" "$YELLOW"
+        else
+            return 1
+        fi
     fi
     
     # Test Docker Compose
