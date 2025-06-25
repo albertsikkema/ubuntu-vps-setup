@@ -84,12 +84,8 @@ configure_timezone() {
     timedatectl set-ntp true
     log "NTP synchronization enabled"
     
-    # Configure Dutch locale while keeping English language
-    if ! grep -q "nl_NL.UTF-8" /etc/locale.gen; then
-        echo "nl_NL.UTF-8 UTF-8" >> /etc/locale.gen
-        locale-gen
-        log "Dutch locale (nl_NL.UTF-8) generated"
-    fi
+    # Note: Locale configuration is handled in the main setup script
+    # to avoid conflicts and ensure proper order
 }
 
 # Configure hostname

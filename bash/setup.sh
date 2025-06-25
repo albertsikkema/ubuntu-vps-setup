@@ -149,19 +149,38 @@ configure_locale_timezone() {
     timedatectl set-timezone UTC
     log "Timezone set to UTC"
     
-    # Configure locale
-    locale-gen en_US.UTF-8
-    update-locale LANG=en_US.UTF-8
+    # Configure locales - generate both English and Dutch
+    log "Generating required locales..."
     
-    # Set Dutch formatting for dates/numbers while keeping English language
+    # Ensure both locales are in locale.gen
+    if ! grep -q "en_US.UTF-8 UTF-8" /etc/locale.gen; then
+        echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+    fi
+    
+    if ! grep -q "nl_NL.UTF-8 UTF-8" /etc/locale.gen; then
+        echo "nl_NL.UTF-8 UTF-8" >> /etc/locale.gen
+    fi
+    
+    # Generate locales
+    locale-gen
+    
+    # Set primary language to English, but use Dutch formatting
     cat > /etc/default/locale << EOF
 LANG=en_US.UTF-8
+LANGUAGE=en_US:en
 LC_TIME=nl_NL.UTF-8
 LC_NUMERIC=nl_NL.UTF-8
 LC_MONETARY=nl_NL.UTF-8
 LC_PAPER=nl_NL.UTF-8
 LC_MEASUREMENT=nl_NL.UTF-8
+LC_CTYPE=en_US.UTF-8
+LC_COLLATE=en_US.UTF-8
+LC_MESSAGES=en_US.UTF-8
 EOF
+    
+    # Apply the locale settings immediately
+    source /etc/default/locale
+    export $(grep -v '^#' /etc/default/locale | xargs)
     
     log "Locale configured: English language with Dutch formatting"
 }
