@@ -190,15 +190,31 @@ auto_input() {
     local prompt="$1"
     local default_value="$2"
     
-    # Check for automated mode
+    # Check for automated mode first
     if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
-        log "Auto mode: Using default '$default_value' for: $prompt" "$BLUE"
-        echo "$default_value"
-        return
+        # In auto mode, use environment variables or defaults
+        case "$prompt" in
+            *"username"*) 
+                local value="${SETUP_USERNAME:-$default_value}"
+                log "Auto mode: Using '$value' for username" "$BLUE"
+                echo "$value"
+                return
+                ;;
+            *"SSH port"*) 
+                local value="${SETUP_SSH_PORT:-$default_value}"
+                log "Auto mode: Using '$value' for SSH port" "$BLUE"
+                echo "$value"
+                return
+                ;;
+            *)
+                log "Auto mode: Using default '$default_value' for: $prompt" "$BLUE"
+                echo "$default_value"
+                return
+                ;;
+        esac
     fi
     
-    # Check for specific environment variables
-    local input_key=""
+    # Check for specific environment variables in non-auto mode
     case "$prompt" in
         *"username"*) 
             if [[ -n "${SETUP_USERNAME:-}" ]]; then
