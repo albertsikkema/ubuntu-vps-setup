@@ -29,7 +29,7 @@ check_prerequisites() {
         else
             if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
                 log "Auto mode: Docker daemon failed to start, skipping docker-ufw integration" "$YELLOW"
-                return 0
+                return 1
             else
                 error_exit "Docker daemon failed to start. Cannot proceed with Docker-UFW integration."
             fi
@@ -40,7 +40,7 @@ check_prerequisites() {
     if ! docker info > /dev/null 2>&1; then
         if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
             log "Auto mode: Docker is not responsive, skipping docker-ufw integration" "$YELLOW"
-            return 0
+            return 1
         else
             error_exit "Docker is not responsive. Cannot proceed with Docker-UFW integration."
         fi
@@ -359,7 +359,11 @@ EOF
 
 # Main execution
 main() {
-    check_prerequisites
+    if ! check_prerequisites; then
+        log "Docker-UFW integration skipped due to prerequisites" "$YELLOW"
+        return 0
+    fi
+    
     explain_problem
     
     # Install and configure
