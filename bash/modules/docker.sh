@@ -111,34 +111,14 @@ configure_docker_daemon() {
     # Create daemon configuration directory
     ensure_dir /etc/docker
     
-    # Create daemon.json with optimized settings
+    # Create minimal daemon.json to avoid startup issues
     cat > /etc/docker/daemon.json << EOF
 {
   "log-driver": "json-file",
   "log-opts": {
-    "max-size": "100m",
-    "max-file": "5"
-  },
-  "default-ulimits": {
-    "nofile": {
-      "Name": "nofile",
-      "Hard": 64000,
-      "Soft": 64000
-    }
-  },
-  "storage-driver": "overlay2",
-  "storage-opts": [
-    "overlay2.override_kernel_check=true"
-  ],
-  "dns": ["8.8.8.8", "8.8.4.4"],
-  "ipv6": false,
-  "userland-proxy": false,
-  "live-restore": true,
-  "experimental": false,
-  "features": {
-    "buildkit": true
-  },
-  "metrics-addr": "127.0.0.1:9323"
+    "max-size": "10m",
+    "max-file": "3"
+  }
 }
 EOF
 
@@ -193,20 +173,56 @@ configure_docker_startup() {
     systemctl enable docker.service
     systemctl enable containerd.service
     
-    # Start Docker with error handling
+    # Start Docker with aggressive error handling
     if systemctl start docker.service; then
         log "Docker service started successfully"
     else
-        log "Docker service failed to start, checking logs..." "$YELLOW"
+        log "Docker service failed to start, troubleshooting..." "$YELLOW"
         journalctl -xeu docker.service --no-pager -l | tail -10
         
-        # Try starting without custom config
+        # Try multiple recovery methods
+        log "Attempting Docker recovery..." "$YELLOW"
+        
+        # Method 1: Remove custom config
         if [[ -f /etc/docker/daemon.json ]]; then
-            log "Removing daemon.json and retrying..." "$YELLOW"
+            log "Removing custom daemon.json..." "$YELLOW"
             mv /etc/docker/daemon.json /etc/docker/daemon.json.failed
-            systemctl start docker.service || error_exit "Docker service failed to start"
+        fi
+        
+        # Method 2: Reset Docker service
+        systemctl stop docker.service 2>/dev/null || true
+        systemctl stop docker.socket 2>/dev/null || true
+        sleep 2
+        
+        # Method 3: Clean Docker state if needed
+        if [[ -d /var/lib/docker ]]; then
+            log "Docker data directory exists, preserving..." "$BLUE"
+        fi
+        
+        # Method 4: Restart with clean state
+        systemctl daemon-reload
+        systemctl enable docker.service
+        
+        if systemctl start docker.service; then
+            log "Docker started successfully after recovery" "$GREEN"
         else
-            error_exit "Docker service failed to start"
+            log "Docker still failing, trying minimal installation..." "$YELLOW"
+            
+            # Last resort: reinstall Docker
+            apt-get remove -y docker-ce docker-ce-cli containerd.io 2>/dev/null || true
+            apt-get install -y docker-ce docker-ce-cli containerd.io
+            
+            systemctl enable docker.service
+            if systemctl start docker.service; then
+                log "Docker started after reinstallation" "$GREEN"
+            else
+                if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+                    log "Auto mode: Docker failed to start, continuing without Docker" "$YELLOW"
+                    return 0
+                else
+                    error_exit "Docker service failed to start after all recovery attempts"
+                fi
+            fi
         fi
     fi
     
