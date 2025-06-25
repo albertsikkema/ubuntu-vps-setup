@@ -1,0 +1,41 @@
+# Logs
+*.log
+/logs/
+
+# Temporary files
+*.tmp
+*.swp
+*.bak
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Test files
+test/
+*.test
+
+# Local configurations
+config.local.yml
+*.local
+config.local.conf
+
+# Sensitive files
+*.key
+*.pem
+secrets/
+
+# Claude artifacts
+.claude/
+
+# Backup files
+*.backup.*
+
+# Runtime files
+*.pid
+*.lock
