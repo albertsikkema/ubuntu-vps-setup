@@ -94,8 +94,19 @@ kernel.perf_event_paranoid = 3
 kernel.kexec_load_disabled = 1
 EOF
 
-    # Apply sysctl settings
-    sysctl -p /etc/sysctl.d/99-security-hardening.conf > /dev/null 2>&1
+    # Apply sysctl settings with validation
+    log "Applying kernel security parameters..."
+    if sysctl -p /etc/sysctl.d/99-security-hardening.conf > /dev/null 2>&1; then
+        log "Kernel parameters applied successfully"
+    else
+        log "Some kernel parameters failed to apply (this is normal on some systems)" "$YELLOW"
+        # Apply individual parameters and ignore failures
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^[^#]*= ]]; then
+                sysctl "$line" > /dev/null 2>&1 || true
+            fi
+        done < /etc/sysctl.d/99-security-hardening.conf
+    fi
     
     log "Kernel parameters hardened" "$GREEN"
 }
@@ -115,7 +126,11 @@ configure_apparmor() {
     
     # Put all profiles in enforce mode
     log "Enforcing AppArmor profiles..."
-    aa-enforce /etc/apparmor.d/* 2>/dev/null || true
+    if aa-enforce /etc/apparmor.d/* 2>/dev/null; then
+        log "AppArmor profiles enforced successfully"
+    else
+        log "Some AppArmor profiles could not be enforced (this is normal)" "$YELLOW"
+    fi
     
     # Show status
     log "AppArmor status:" "$BLUE"
@@ -132,9 +147,14 @@ configure_aide() {
         # Install AIDE
         install_package aide aide-common
         
-        # Initialize AIDE database
+        # Initialize AIDE database with better error handling
         log "Initializing AIDE database (this may take a while)..."
-        aideinit
+        if aideinit 2>/dev/null; then
+            log "AIDE database initialized successfully"
+        else
+            log "AIDE initialization failed, skipping AIDE setup" "$YELLOW"
+            return 0
+        fi
         
         # Copy the database
         cp /var/lib/aide/aide.db.new /var/lib/aide/aide.db
