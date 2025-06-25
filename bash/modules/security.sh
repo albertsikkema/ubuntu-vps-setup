@@ -333,7 +333,6 @@ install_security_tools() {
         "lynis"             # Security auditing tool
         "debsums"           # Verify installed packages
         "libpam-tmpdir"     # Temporary directory isolation
-        "apt-listbugs"      # Check for bugs before installing
         "apt-listchanges"   # Show changelogs
         "needrestart"       # Check for services needing restart
     )
