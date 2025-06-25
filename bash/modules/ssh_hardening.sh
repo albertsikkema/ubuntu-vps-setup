@@ -123,7 +123,12 @@ EOF
 configure_ssh_access() {
     log "Configuring SSH access restrictions..."
     
-    if confirm "Restrict SSH access to specific users/groups?"; then
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        log "Auto mode: Skipping SSH user/group restrictions" "$BLUE"
+        return
+    fi
+    
+    if [[ "${SETUP_RESTRICT_SSH_ACCESS:-no}" == "yes" ]] && confirm "Restrict SSH access to specific users/groups?"; then
         echo "" >> /etc/ssh/sshd_config.d/99-hardening.conf
         
         # Allow specific users

@@ -255,8 +255,9 @@ export SETUP_PASSWORDLESS_SUDO="yes"
 export SETUP_DISABLE_ROOT_SSH="yes"
 export SETUP_LOCK_ROOT_PASSWORD="yes"
 
-# SSH Hardening
+# SSH Hardening  
 export SETUP_SSH_PORT_CHANGE="no"
+export SETUP_RESTRICT_SSH_ACCESS="no"
 export SETUP_ENABLE_2FA="no"
 export SETUP_REGENERATE_HOST_KEYS="yes"
 export SETUP_ADD_LOGIN_BANNER="yes"
