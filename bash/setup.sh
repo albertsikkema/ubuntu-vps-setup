@@ -428,6 +428,67 @@ show_auto_summary() {
     fi
 }
 
+# Show setup summary with important information
+show_setup_summary() {
+    echo
+    echo "================================================"
+    echo "            SETUP COMPLETE"
+    echo "================================================"
+    echo
+    
+    # Extract generated password from log
+    local generated_password=$(grep "Temporary password for" "$LOG_FILE" 2>/dev/null | tail -1 | sed 's/.*: //')
+    local username=$(grep "Temporary password for" "$LOG_FILE" 2>/dev/null | tail -1 | sed 's/.*for \([^:]*\):.*/\1/')
+    
+    if [[ -n "$generated_password" && -n "$username" ]]; then
+        echo "🔑 IMPORTANT: Login Credentials"
+        echo "   Username: $username"
+        echo "   Password: $generated_password"
+        echo "   ⚠️  CHANGE THIS PASSWORD IMMEDIATELY AFTER LOGIN!"
+        echo
+    fi
+    
+    echo "🌍 Server Configuration:"
+    echo "   Timezone: UTC"
+    echo "   Locale: English with Dutch formatting"
+    echo "   SSH Port: $(grep 'Port ' /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo '22')"
+    echo
+    
+    echo "🔥 Firewall Status:"
+    ufw status numbered 2>/dev/null | head -10 || echo "   UFW status unavailable"
+    echo
+    
+    echo "🐳 Docker Status:"
+    if systemctl is-active docker.service > /dev/null 2>&1; then
+        echo "   Docker: Running"
+        docker --version 2>/dev/null || echo "   Version check failed"
+    else
+        echo "   Docker: Not running or not installed"
+    fi
+    echo
+    
+    echo "📊 Services Status:"
+    for service in fail2ban netdata ufw; do
+        if systemctl is-active $service > /dev/null 2>&1; then
+            echo "   $service: ✅ Running"
+        else
+            echo "   $service: ❌ Not running"
+        fi
+    done
+    echo
+    
+    if [[ -n "$generated_password" ]]; then
+        echo "🚨 NEXT STEPS:"
+        echo "   1. SSH to your server: ssh $username@$(hostname -I | awk '{print $1}') -p $(grep 'Port ' /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo '22')"
+        echo "   2. Change the password: passwd"
+        echo "   3. Set up SSH keys for secure access"
+        echo "   4. Review the setup log: $LOG_FILE"
+        echo
+    fi
+    
+    echo "================================================"
+}
+
 # Main execution
 main() {
     # Parse arguments first
@@ -456,8 +517,11 @@ main() {
     run_setup "$@"
     
     log "Setup completed successfully!" "$GREEN"
+    
+    # Show setup summary
+    show_setup_summary
+    
     log "Check the log file for details: $LOG_FILE" "$BLUE"
-    log "Server is configured for Netherlands (nl-NL) with UTC timezone" "$BLUE"
 }
 
 # Run main function with all arguments
