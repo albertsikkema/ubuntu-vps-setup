@@ -42,18 +42,13 @@ declare -A MODULES=(
     ["user_management"]="User Management & Sudo Configuration"
     ["ssh_hardening"]="SSH Security Hardening"
     ["firewall"]="UFW Firewall Configuration"
-    ["security"]="System Security Hardening"
     ["docker"]="Docker & Docker Compose Installation"
     ["docker_ufw"]="Docker-UFW Integration Fix"
-    ["monitoring"]="Monitoring & Logging Setup"
-    ["backup"]="Backup Configuration"
 )
 
 # Module dependencies
 declare -A MODULE_DEPS=(
     ["docker_ufw"]="docker firewall"
-    ["monitoring"]="system_update"
-    ["backup"]="system_update"
 )
 
 # Parse command line arguments
@@ -105,12 +100,14 @@ Options:
     -m, --modules <list>    Run specific modules (comma-separated)
 
 Available modules:
-EOF
-    for module in "${!MODULES[@]}"; do
-        printf "    %-20s %s\n" "$module" "${MODULES[$module]}"
-    done
-    echo
-    echo "Example: $0 --modules system_update,ssh_hardening,firewall"
+    system_update        System Update & Basic Setup
+    user_management      User Management & Sudo Configuration
+    ssh_hardening        SSH Security Hardening
+    firewall             UFW Firewall Configuration
+    docker               Docker & Docker Compose Installation
+    docker_ufw           Docker-UFW Integration Fix
+
+Example: $0 --modules system_update,ssh_hardening,firewall
 }
 
 # Display interactive menu

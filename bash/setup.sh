@@ -15,7 +15,7 @@ LOG_FILE="/var/log/vps-setup.log"
 # Automated setup defaults
 AUTO_MODE=false
 INTERACTIVE_MODE=true
-DEFAULT_MODULES="system_update,user_management,ssh_hardening,firewall,security,docker,docker_ufw,monitoring,backup"
+DEFAULT_MODULES="system_update,user_management,ssh_hardening,firewall,docker,docker_ufw"
 CONFIG_FILE=""
 
 # Default configuration values
@@ -112,7 +112,7 @@ Examples:
 
 Modules available:
     system_update, user_management, ssh_hardening, firewall,
-    security, docker, docker_ufw, monitoring, backup
+    docker, docker_ufw
 EOF
 }
 
@@ -206,6 +206,62 @@ EOF
     fi
 }
 
+# Collect user credentials at start
+collect_user_credentials() {
+    if [[ "$AUTO_MODE" == "false" ]]; then
+        log "Setting up user credentials..."
+        echo
+        echo "Enter credentials for the new sudo user:"
+        
+        # Get username
+        while true; do
+            read -p "Username: " input_username
+            
+            if [[ -z "$input_username" ]]; then
+                echo "Username cannot be empty"
+                continue
+            elif [[ ! "$input_username" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+                echo "Invalid username. Use lowercase letters, numbers, underscore, and hyphen only"
+                continue
+            elif [[ ${#input_username} -lt 3 || ${#input_username} -gt 32 ]]; then
+                echo "Username must be 3-32 characters long"
+                continue
+            else
+                DEFAULT_USERNAME="$input_username"
+                break
+            fi
+        done
+        
+        # Get password
+        while true; do
+            read -s -p "Password: " input_password
+            echo
+            read -s -p "Confirm password: " input_password_confirm
+            echo
+            
+            if [[ -z "$input_password" ]]; then
+                echo "Password cannot be empty"
+                continue
+            elif [[ ${#input_password} -lt 8 ]]; then
+                echo "Password must be at least 8 characters long"
+                continue
+            elif [[ "$input_password" != "$input_password_confirm" ]]; then
+                echo "Passwords do not match"
+                continue
+            else
+                USER_PASSWORD="$input_password"
+                break
+            fi
+        done
+        
+        echo
+        log "Credentials set for user: $DEFAULT_USERNAME" "$GREEN"
+    else
+        log "Auto mode: Using default credentials" "$BLUE"
+        USER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-16)
+    fi
+}
+
 # Pre-configure packages to avoid interactive prompts
 configure_package_defaults() {
     log "Pre-configuring package defaults..."
@@ -254,6 +310,7 @@ create_environment_file() {
 # Automated setup environment variables
 export SETUP_AUTO_MODE="$AUTO_MODE"
 export SETUP_USERNAME="$DEFAULT_USERNAME"
+export SETUP_USER_PASSWORD="$USER_PASSWORD"
 export SETUP_SSH_PORT="$DEFAULT_SSH_PORT"
 export SETUP_TIMEZONE="$DEFAULT_TIMEZONE"
 export SETUP_LOCALE="$DEFAULT_LOCALE"
@@ -290,11 +347,7 @@ export SETUP_ADD_IP_RULES="no"
 export SETUP_ENABLE_IPV6="no"
 export SETUP_ENABLE_FIREWALL="yes"
 
-# Security
-export SETUP_INSTALL_AIDE="no"
-export SETUP_INSTALL_MONIT="no"
-export SETUP_DISABLE_UNNECESSARY_SERVICES="yes"
-export SETUP_FIX_WORLD_WRITABLE="yes"
+# Security - removed (module disabled)
 
 # Docker
 export SETUP_REINSTALL_DOCKER="no"
@@ -309,13 +362,8 @@ export SETUP_ENABLE_DOCKER_IPTABLES="yes"
 export SETUP_CONTINUE_DOCKER_UFW="yes"
 export SETUP_RUN_DOCKER_TEST="no"
 
-# Monitoring
-export SETUP_INSTALL_NETDATA="yes"
-export SETUP_INSTALL_MONIT="yes"
-export SETUP_DAILY_REPORTS="yes"
-
-# Backup
-export SETUP_AUTOMATED_BACKUPS="yes"
+# Monitoring - removed (module disabled)
+# Backup - removed (module disabled)
 EOF
     
     log "Environment file created for automated setup"
@@ -436,17 +484,10 @@ show_setup_summary() {
     echo "================================================"
     echo
     
-    # Extract generated password from log
-    local generated_password=$(grep "Temporary password for" "$LOG_FILE" 2>/dev/null | tail -1 | sed 's/.*: //')
-    local username=$(grep "Temporary password for" "$LOG_FILE" 2>/dev/null | tail -1 | sed 's/.*for \([^:]*\):.*/\1/')
-    
-    if [[ -n "$generated_password" && -n "$username" ]]; then
-        echo "🔑 IMPORTANT: Login Credentials"
-        echo "   Username: $username"
-        echo "   Password: $generated_password"
-        echo "   ⚠️  CHANGE THIS PASSWORD IMMEDIATELY AFTER LOGIN!"
-        echo
-    fi
+    echo "🔑 Login Credentials:"
+    echo "   Username: $DEFAULT_USERNAME"
+    echo "   Password: [You provided this during setup]"
+    echo
     
     echo "🌍 Server Configuration:"
     echo "   Timezone: UTC"
@@ -468,7 +509,7 @@ show_setup_summary() {
     echo
     
     echo "📊 Services Status:"
-    for service in fail2ban netdata ufw; do
+    for service in fail2ban ufw; do
         if systemctl is-active $service > /dev/null 2>&1; then
             echo "   $service: ✅ Running"
         else
@@ -503,16 +544,13 @@ show_setup_summary() {
         echo
     fi
     
-    if [[ -n "$generated_password" ]]; then
-        echo "🚨 NEXT STEPS:"
-        echo "   1. Remove old host key: ssh-keygen -R $(hostname -I | awk '{print $1}')"
-        echo "   2. SSH to your server: ssh $username@$(hostname -I | awk '{print $1}') -p $(grep 'Port ' /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo '22')"
-        echo "   3. Accept the new SSH host key fingerprint"
-        echo "   4. Change the password: passwd"
-        echo "   5. Set up SSH keys for secure access"
-        echo "   6. Review the setup log: $LOG_FILE"
-        echo
-    fi
+    echo "🚨 NEXT STEPS:"
+    echo "   1. Remove old host key: ssh-keygen -R $(hostname -I | awk '{print $1}')"
+    echo "   2. SSH to your server: ssh $DEFAULT_USERNAME@$(hostname -I | awk '{print $1}') -p $(grep 'Port ' /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo '22')"
+    echo "   3. Accept the new SSH host key fingerprint"
+    echo "   4. Set up SSH keys for secure access"
+    echo "   5. Review the setup log: $LOG_FILE"
+    echo
     
     echo "================================================"
 }
@@ -539,6 +577,9 @@ main() {
     # Run checks
     check_root
     check_ubuntu_version
+    
+    # Collect user credentials
+    collect_user_credentials
     
     # Download and run
     download_repo
