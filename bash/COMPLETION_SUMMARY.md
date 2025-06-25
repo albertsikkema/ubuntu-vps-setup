@@ -39,7 +39,7 @@ All major features implemented and tested. The tool is ready for production use!
 
 ### 1. **Full Automation (Recommended)**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourusername/ubuntu-vps-setup/main/bash/setup.sh | sudo bash -s -- --auto
+curl -fsSL https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/bash/setup.sh | sudo bash -s -- --auto
 ```
 
 ### 2. **Custom Automation**

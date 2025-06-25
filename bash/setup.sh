@@ -7,7 +7,7 @@
 set -euo pipefail
 
 # Configuration
-REPO_URL="https://github.com/yourusername/ubuntu-vps-setup"
+REPO_URL="https://github.com/albertsikkema/ubuntu-vps-setup"
 REPO_BRANCH="main"
 TEMP_DIR="/tmp/vps-setup-$$"
 LOG_FILE="/var/log/vps-setup.log"
