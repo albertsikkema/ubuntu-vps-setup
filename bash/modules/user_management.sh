@@ -20,24 +20,35 @@ create_sudo_user() {
     log "Creating new sudo user..."
     
     # Get username with automated support
-    while true; do
-        NEW_USER=$(auto_input "Enter username for new sudo user" "${SETUP_USERNAME:-admin}")
-        
-        if [[ -z "$NEW_USER" ]]; then
-            log "Username cannot be empty" "$RED"
-            continue
-        fi
-        
-        if [[ "$NEW_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
-            break
-        else
-            log "Invalid username. Use lowercase letters, numbers, underscore, and hyphen only" "$RED"
-            if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
-                NEW_USER="admin"  # Fallback to safe default
-                break
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        NEW_USER="${SETUP_USERNAME:-admin}"
+        log "Auto mode: Using username '$NEW_USER'" "$BLUE"
+    else
+        while true; do
+            NEW_USER=$(auto_input "Enter username for new sudo user" "${SETUP_USERNAME:-admin}")
+            
+            if [[ -z "$NEW_USER" ]]; then
+                log "Username cannot be empty" "$RED"
+                continue
             fi
-        fi
-    done
+        
+            if [[ "$NEW_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+                break
+            else
+                log "Invalid username. Use lowercase letters, numbers, underscore, and hyphen only" "$RED"
+                if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+                    NEW_USER="admin"  # Fallback to safe default
+                    break
+                fi
+            fi
+        done
+    fi
+    
+    # Validate username format
+    if [[ ! "$NEW_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+        log "Invalid username format, using 'admin'" "$YELLOW"
+        NEW_USER="admin"
+    fi
     
     # Check if user already exists
     if id "$NEW_USER" &>/dev/null; then
