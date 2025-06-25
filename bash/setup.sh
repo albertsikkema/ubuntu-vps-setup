@@ -477,12 +477,40 @@ show_setup_summary() {
     done
     echo
     
+    echo "🔐 SSH Host Keys:"
+    if [[ -f /etc/ssh/ssh_host_ed25519_key.pub ]]; then
+        echo "   ⚠️  Host keys were regenerated for security!"
+        echo "   You WILL get 'host key verification failed' on first connect"
+        echo
+        
+        echo "   New SSH Key Fingerprints:"
+        if [[ -f /etc/ssh/ssh_host_ed25519_key.pub ]]; then
+            echo "   ED25519: $(ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub 2>/dev/null)"
+        fi
+        if [[ -f /etc/ssh/ssh_host_rsa_key.pub ]]; then
+            echo "   RSA:     $(ssh-keygen -lf /etc/ssh/ssh_host_rsa_key.pub 2>/dev/null)"
+        fi
+        echo
+        
+        echo "📥 To fix SSH key verification on your PC:"
+        echo "   Method 1 - Remove old key:"
+        echo "     ssh-keygen -R $(hostname -I | awk '{print $1}')"
+        echo "     ssh-keygen -R $(hostname -f 2>/dev/null || hostname)"
+        echo
+        echo "   Method 2 - Connect ignoring host key check:"
+        echo "     ssh -o StrictHostKeyChecking=no $username@$(hostname -I | awk '{print $1}') -p $(grep 'Port ' /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo '22')"
+        echo "     (Then type 'yes' to accept the new fingerprint)"
+        echo
+    fi
+    
     if [[ -n "$generated_password" ]]; then
         echo "🚨 NEXT STEPS:"
-        echo "   1. SSH to your server: ssh $username@$(hostname -I | awk '{print $1}') -p $(grep 'Port ' /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo '22')"
-        echo "   2. Change the password: passwd"
-        echo "   3. Set up SSH keys for secure access"
-        echo "   4. Review the setup log: $LOG_FILE"
+        echo "   1. Remove old host key: ssh-keygen -R $(hostname -I | awk '{print $1}')"
+        echo "   2. SSH to your server: ssh $username@$(hostname -I | awk '{print $1}') -p $(grep 'Port ' /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo '22')"
+        echo "   3. Accept the new SSH host key fingerprint"
+        echo "   4. Change the password: passwd"
+        echo "   5. Set up SSH keys for secure access"
+        echo "   6. Review the setup log: $LOG_FILE"
         echo
     fi
     
