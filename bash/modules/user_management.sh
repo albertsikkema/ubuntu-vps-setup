@@ -52,8 +52,17 @@ create_sudo_user() {
         
         # Set password
         log "Setting password for $NEW_USER..."
-        echo "Please set a strong password for the new user:"
-        passwd "$NEW_USER" || error_exit "Failed to set password"
+        if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+            # Generate random password for automated mode
+            local temp_password=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-16)
+            echo "$NEW_USER:$temp_password" | chpasswd
+            log "Auto-generated temporary password for $NEW_USER (change after setup)" "$YELLOW"
+            log "Temporary password: $temp_password" "$YELLOW"
+            echo "IMPORTANT: Temporary password for $NEW_USER: $temp_password" >> /var/log/vps-setup.log
+        else
+            echo "Please set a strong password for the new user:"
+            passwd "$NEW_USER" || error_exit "Failed to set password"
+        fi
     fi
     
     # Add to sudo group
@@ -69,13 +78,18 @@ setup_ssh_key() {
     ensure_dir "$ssh_dir"
     
     # Get SSH public key
-    echo "Please provide SSH public key for $NEW_USER"
-    echo "You can:"
-    echo "1) Paste the key directly"
-    echo "2) Provide a URL to download the key"
-    echo "3) Skip SSH key setup"
-    
-    read -p "Choose option (1-3): " option
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        log "Auto mode: Skipping SSH key setup (configure manually after installation)" "$BLUE"
+        option=3
+    else
+        echo "Please provide SSH public key for $NEW_USER"
+        echo "You can:"
+        echo "1) Paste the key directly"
+        echo "2) Provide a URL to download the key"
+        echo "3) Skip SSH key setup"
+        
+        read -p "Choose option (1-3): " option
+    fi
     
     case $option in
         1)

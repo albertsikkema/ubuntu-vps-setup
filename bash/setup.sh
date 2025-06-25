@@ -246,22 +246,55 @@ export SETUP_COUNTRY="$DEFAULT_COUNTRY"
 export SETUP_MODULES="$DEFAULT_MODULES"
 export SETUP_INTERACTIVE="$INTERACTIVE_MODE"
 
-# Default responses for interactive prompts
+# Default responses for interactive prompts - COMPLETE AUTOMATION
+# System Update
 export SETUP_CHANGE_HOSTNAME="no"
-export SETUP_SSH_PORT_CHANGE="yes"
+
+# User Management  
+export SETUP_PASSWORDLESS_SUDO="yes"
 export SETUP_DISABLE_ROOT_SSH="yes"
 export SETUP_LOCK_ROOT_PASSWORD="yes"
-export SETUP_PASSWORDLESS_SUDO="yes"
-export SETUP_ALLOW_HTTP="yes"
-export SETUP_ALLOW_HTTPS="yes"
+
+# SSH Hardening
+export SETUP_SSH_PORT_CHANGE="no"
 export SETUP_ENABLE_2FA="no"
 export SETUP_REGENERATE_HOST_KEYS="yes"
 export SETUP_ADD_LOGIN_BANNER="yes"
+
+# Firewall
+export SETUP_RESET_FIREWALL="no"
+export SETUP_ALLOW_HTTP="yes"
+export SETUP_ALLOW_HTTPS="yes"
+export SETUP_CONFIGURE_ADVANCED_FIREWALL="no"
+export SETUP_ENABLE_IPV6="no"
+export SETUP_ENABLE_FIREWALL="yes"
+
+# Security
 export SETUP_INSTALL_AIDE="no"
-export SETUP_REMOVE_OLD_DOCKER="yes"
+export SETUP_INSTALL_MONIT="no"
+export SETUP_DISABLE_UNNECESSARY_SERVICES="yes"
+export SETUP_FIX_WORLD_WRITABLE="yes"
+
+# Docker
+export SETUP_REINSTALL_DOCKER="no"
+export SETUP_REMOVE_OLD_DOCKER="no"
+export SETUP_ADD_DOCKER_USERS="no"
+export SETUP_INSTALL_COMPOSE_STANDALONE="no"
 export SETUP_ENABLE_USER_NAMESPACE="no"
 export SETUP_ENABLE_CONTENT_TRUST="no"
+
+# Docker UFW
+export SETUP_ENABLE_DOCKER_IPTABLES="yes"
+export SETUP_CONTINUE_DOCKER_UFW="yes"
 export SETUP_RUN_DOCKER_TEST="no"
+
+# Monitoring
+export SETUP_INSTALL_NETDATA="yes"
+export SETUP_INSTALL_MONIT="yes"
+export SETUP_DAILY_REPORTS="yes"
+
+# Backup
+export SETUP_AUTOMATED_BACKUPS="yes"
 EOF
     
     log "Environment file created for automated setup"
