@@ -11,10 +11,29 @@ source "$SCRIPT_DIR/utils.sh"
 
 log "Starting System Update & Basic Setup Module" "$BLUE"
 
-# Update package lists
+# Update package lists (centralized)
 update_packages() {
     log "Updating package lists..."
-    apt-get update -qq || error_exit "Failed to update package lists"
+    
+    # Clear any lock files first
+    rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* 2>/dev/null || true
+    
+    # Update with better error handling
+    local max_attempts=3
+    local attempt=1
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        if apt-get update -qq 2>/dev/null; then
+            log "Package lists updated successfully"
+            return 0
+        fi
+        
+        log "Package list update attempt $attempt failed, retrying..." "$YELLOW"
+        sleep 2
+        ((attempt++))
+    done
+    
+    error_exit "Failed to update package lists after $max_attempts attempts"
 }
 
 # Upgrade installed packages
@@ -31,11 +50,12 @@ upgrade_packages() {
     apt-get autoclean -y -qq
 }
 
-# Install essential packages
+# Install essential packages efficiently
 install_essentials() {
     log "Installing essential packages..."
     
-    local packages=(
+    # Core essentials (always needed)
+    local core_packages=(
         curl
         wget
         git
@@ -51,6 +71,10 @@ install_essentials() {
         ca-certificates
         gnupg
         lsb-release
+    )
+    
+    # Additional tools (useful but not critical)
+    local additional_packages=(
         build-essential
         python3-pip
         unzip
@@ -61,15 +85,23 @@ install_essentials() {
         sysstat
         mtr-tiny
         dnsutils
-        tcpdump
         rsync
         screen
         tmux
     )
     
-    for package in "${packages[@]}"; do
-        install_package "$package"
-    done
+    # Install core packages first (critical for other modules)
+    log "Installing core packages..."
+    install_packages "${core_packages[@]}"
+    
+    # Install additional packages (continue on failure in auto mode)
+    log "Installing additional tools..."
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        # In auto mode, don't fail if additional packages can't be installed
+        install_packages "${additional_packages[@]}" || log "Some additional packages failed to install" "$YELLOW"
+    else
+        install_packages "${additional_packages[@]}"
+    fi
 }
 
 # Configure timezone
@@ -122,34 +154,41 @@ configure_swap() {
     if [[ $swap_size -eq 0 ]]; then
         log "No swap detected, creating swap file..."
         
-        # Calculate swap size (2x RAM up to 4GB, then 1x RAM)
+        # Calculate swap size efficiently (1x RAM, max 4GB for VPS)
         local ram_size=$(free -m | awk '/^Mem:/ {print $2}')
-        local swap_size_mb=$((ram_size * 2))
+        local swap_size_mb=$ram_size
         
+        # Cap at 4GB for VPS efficiency
         if [[ $swap_size_mb -gt 4096 ]]; then
-            swap_size_mb=$ram_size
+            swap_size_mb=4096
         fi
         
-        if [[ $swap_size_mb -gt 8192 ]]; then
-            swap_size_mb=8192
+        # Minimum 512MB
+        if [[ $swap_size_mb -lt 512 ]]; then
+            swap_size_mb=512
         fi
         
         log "Creating ${swap_size_mb}MB swap file..."
         
-        # Create swap file
-        fallocate -l "${swap_size_mb}M" /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=$swap_size_mb
+        # Create swap file efficiently
+        if command_exists fallocate; then
+            fallocate -l "${swap_size_mb}M" /swapfile
+        else
+            dd if=/dev/zero of=/swapfile bs=1M count=$swap_size_mb status=none
+        fi
+        
         chmod 600 /swapfile
-        mkswap /swapfile
+        mkswap /swapfile > /dev/null
         swapon /swapfile
         
         # Make permanent
         add_line_if_not_exists /etc/fstab "/swapfile none swap sw 0 0"
         
-        # Configure swappiness
+        # Configure swappiness (lower for VPS)
         update_config_line /etc/sysctl.conf "vm.swappiness" "vm.swappiness=10"
-        sysctl vm.swappiness=10
+        sysctl vm.swappiness=10 > /dev/null
         
-        log "Swap file created and activated"
+        log "Swap file created and activated" "$GREEN"
     else
         log "Swap already configured: ${swap_size}MB" "$BLUE"
     fi

@@ -250,28 +250,47 @@ resolve_dependencies() {
     SELECTED_MODULES=("${resolved[@]}")
 }
 
-# Run a module
+# Run a module with progress tracking
 run_module() {
     local module=$1
     local module_script="$MODULES_DIR/${module}.sh"
+    local current_index=$2
+    local total_modules=$3
     
     if [[ ! -f "$module_script" ]]; then
         log "Module script not found: $module" "$RED"
         return 1
     fi
     
-    log "Running module: ${MODULES[$module]}" "$BLUE"
+    # Progress indicator
+    local progress=""
+    if [[ -n "$current_index" ]] && [[ -n "$total_modules" ]]; then
+        progress="[$current_index/$total_modules] "
+    fi
+    
+    log "${progress}Running module: ${MODULES[$module]}" "$BLUE"
+    local start_time=$(date +%s)
     
     if [[ "$DRY_RUN" == "true" ]]; then
         log "  [DRY RUN] Would execute: $module_script" "$YELLOW"
         MODULE_STATUS[$module]="skipped"
     else
-        if bash "$module_script"; then
+        # Run module with timeout for auto mode
+        local timeout_cmd=""
+        if [[ "$AUTO_MODE" == "true" ]]; then
+            timeout_cmd="timeout 600"  # 10 minute timeout
+        fi
+        
+        if $timeout_cmd bash "$module_script" 2>&1; then
             MODULE_STATUS[$module]="success"
-            log "  Module completed successfully" "$GREEN"
+            local end_time=$(date +%s)
+            local duration=$((end_time - start_time))
+            log "  ✓ Module completed successfully (${duration}s)" "$GREEN"
         else
             MODULE_STATUS[$module]="failed"
-            log "  Module failed" "$RED"
+            local end_time=$(date +%s)
+            local duration=$((end_time - start_time))
+            log "  ✗ Module failed after ${duration}s" "$RED"
             return 1
         fi
     fi
@@ -316,11 +335,11 @@ main() {
     if [[ ${#SELECTED_MODULES[@]} -eq 0 ]] && [[ "$AUTO_MODE" == "false" ]] && [[ "$QUICK_MODE" == "false" ]]; then
         show_menu
     elif [[ "$AUTO_MODE" == "true" ]] && [[ ${#SELECTED_MODULES[@]} -eq 0 ]]; then
-        # Auto mode: select full suite including Docker
-        SELECTED_MODULES=(system_update user_management ssh_hardening firewall security docker docker_ufw)
+        # Auto mode: select all available modules (security was removed)
+        SELECTED_MODULES=(system_update user_management ssh_hardening firewall docker docker_ufw)
     elif [[ "$QUICK_MODE" == "true" ]] && [[ ${#SELECTED_MODULES[@]} -eq 0 ]]; then
-        # Quick mode: select recommended modules
-        SELECTED_MODULES=(system_update user_management ssh_hardening firewall security)
+        # Quick mode: select recommended modules (security was removed)
+        SELECTED_MODULES=(system_update user_management ssh_hardening firewall)
     fi
     
     # Resolve dependencies
@@ -347,14 +366,33 @@ main() {
         fi
     fi
     
-    # Run modules
+    # Run modules with progress tracking
+    local total_modules=${#SELECTED_MODULES[@]}
+    local current=1
+    local overall_start_time=$(date +%s)
+    
+    echo
+    log "Starting setup with $total_modules modules..." "$BLUE"
+    echo
+    
     for module in "${SELECTED_MODULES[@]}"; do
-        if ! run_module "$module"; then
+        if ! run_module "$module" "$current" "$total_modules"; then
             log "Setup stopped due to module failure" "$RED"
             show_summary
             exit 1
         fi
+        echo  # Add spacing between modules
+        ((current++))
     done
+    
+    # Show completion time
+    local overall_end_time=$(date +%s)
+    local total_duration=$((overall_end_time - overall_start_time))
+    local minutes=$((total_duration / 60))
+    local seconds=$((total_duration % 60))
+    
+    echo
+    log "All modules completed in ${minutes}m ${seconds}s!" "$GREEN"
     
     # Show summary
     show_summary

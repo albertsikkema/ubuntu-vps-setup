@@ -56,11 +56,8 @@ install_prerequisites() {
         software-properties-common
     )
     
-    apt-get update -qq
-    
-    for package in "${packages[@]}"; do
-        install_package "$package"
-    done
+    # Install all prerequisites efficiently
+    install_packages "${packages[@]}"
 }
 
 # Add Docker repository
@@ -73,17 +70,22 @@ add_docker_repository() {
     # Remove existing key if present to avoid prompts
     rm -f /etc/apt/keyrings/docker.gpg
     
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    # Download and add GPG key with better error handling
+    if ! curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg 2>/dev/null; then
+        error_exit "Failed to download Docker GPG key"
+    fi
     chmod a+r /etc/apt/keyrings/docker.gpg
     
+    # Get OS information once
+    local arch=$(dpkg --print-architecture)
+    local codename=$(. /etc/os-release && echo "$VERSION_CODENAME")
+    
     # Add the repository to apt sources
-    echo \
-        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+    echo "deb [arch=${arch} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${codename} stable" | \
         tee /etc/apt/sources.list.d/docker.list > /dev/null
     
-    # Update package index
-    apt-get update -qq
+    # Update package index efficiently (this is needed for Docker packages)
+    apt-get update -qq -o Dir::Etc::sourcelist="sources.list.d/docker.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
     
     log "Docker repository added"
 }
@@ -92,13 +94,28 @@ add_docker_repository() {
 install_docker_engine() {
     log "Installing Docker Engine..."
     
-    # Install Docker packages
-    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    # Install Docker packages efficiently
+    local packages=(
+        docker-ce
+        docker-ce-cli
+        containerd.io
+        docker-buildx-plugin
+        docker-compose-plugin
+    )
     
-    # Verify installation
-    if docker --version > /dev/null 2>&1; then
+    export DEBIAN_FRONTEND=noninteractive
+    if apt-get install -y -qq "${packages[@]}" 2>/dev/null; then
+        log "Docker packages installed successfully" "$GREEN"
+    else
+        log "Retrying Docker installation..." "$YELLOW"
+        apt-get update -qq
+        apt-get install -y "${packages[@]}" || error_exit "Docker Engine installation failed"
+    fi
+    
+    # Quick verification
+    if command_exists docker; then
         log "Docker Engine installed successfully" "$GREEN"
-        docker --version
+        docker --version | head -1
     else
         error_exit "Docker Engine installation failed"
     fi
@@ -135,25 +152,38 @@ configure_docker_user() {
         log "Docker group created"
     fi
     
-    # Add users to docker group
-    echo "Users with sudo access:"
-    grep -E '^sudo:' /etc/group | cut -d: -f4 | tr ',' '\n' | grep -v '^$'
-    
+    # Auto mode: add setup user to docker group
     if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
-        log "Auto mode: Skipping user addition to docker group" "$BLUE"
-    elif confirm "Add users to docker group for non-root Docker access?"; then
-        read -p "Enter usernames to add (space-separated): " users
+        local setup_user="${SETUP_USER_USERNAME:-${SETUP_USERNAME:-admin}}"
+        if id "$setup_user" &>/dev/null; then
+            usermod -aG docker "$setup_user"
+            log "Auto mode: Added $setup_user to docker group" "$BLUE"
+        else
+            log "Auto mode: Setup user $setup_user not found, skipping docker group" "$YELLOW"
+        fi
+    else
+        # Interactive mode
+        echo "Users with sudo access:"
+        if grep -E '^sudo:' /etc/group 2>/dev/null | cut -d: -f4 | tr ',' '\n' | grep -v '^$'; then
+            echo
+        else
+            echo "No sudo users found"
+        fi
         
-        for user in $users; do
-            if id "$user" &>/dev/null; then
-                usermod -aG docker "$user"
-                log "User $user added to docker group"
-            else
-                log "User $user does not exist" "$RED"
-            fi
-        done
-        
-        log "Users need to log out and back in for group changes to take effect" "$YELLOW"
+        if confirm "Add users to docker group for non-root Docker access?"; then
+            read -p "Enter usernames to add (space-separated): " users
+            
+            for user in $users; do
+                if id "$user" &>/dev/null; then
+                    usermod -aG docker "$user"
+                    log "User $user added to docker group"
+                else
+                    log "User $user does not exist" "$RED"
+                fi
+            done
+            
+            log "Users need to log out and back in for group changes to take effect" "$YELLOW"
+        fi
     fi
 }
 
@@ -173,55 +203,35 @@ configure_docker_startup() {
     systemctl enable docker.service
     systemctl enable containerd.service
     
-    # Start Docker with aggressive error handling
+    # Start Docker with fast error handling
     if systemctl start docker.service; then
         log "Docker service started successfully"
     else
-        log "Docker service failed to start, troubleshooting..." "$YELLOW"
-        journalctl -xeu docker.service --no-pager -l | tail -10
+        log "Docker service failed to start, trying quick recovery..." "$YELLOW"
         
-        # Try multiple recovery methods
-        log "Attempting Docker recovery..." "$YELLOW"
-        
-        # Method 1: Remove custom config
+        # Quick recovery: Remove config and retry once
         if [[ -f /etc/docker/daemon.json ]]; then
-            log "Removing custom daemon.json..." "$YELLOW"
+            log "Removing daemon.json and retrying..." "$YELLOW"
             mv /etc/docker/daemon.json /etc/docker/daemon.json.failed
-        fi
-        
-        # Method 2: Reset Docker service
-        systemctl stop docker.service 2>/dev/null || true
-        systemctl stop docker.socket 2>/dev/null || true
-        sleep 2
-        
-        # Method 3: Clean Docker state if needed
-        if [[ -d /var/lib/docker ]]; then
-            log "Docker data directory exists, preserving..." "$BLUE"
-        fi
-        
-        # Method 4: Restart with clean state
-        systemctl daemon-reload
-        systemctl enable docker.service
-        
-        if systemctl start docker.service; then
-            log "Docker started successfully after recovery" "$GREEN"
-        else
-            log "Docker still failing, trying minimal installation..." "$YELLOW"
+            systemctl daemon-reload
             
-            # Last resort: reinstall Docker
-            apt-get remove -y docker-ce docker-ce-cli containerd.io 2>/dev/null || true
-            apt-get install -y docker-ce docker-ce-cli containerd.io
-            
-            systemctl enable docker.service
             if systemctl start docker.service; then
-                log "Docker started after reinstallation" "$GREEN"
+                log "Docker started after removing config" "$GREEN"
             else
                 if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
                     log "Auto mode: Docker failed to start, continuing without Docker" "$YELLOW"
                     return 0
                 else
-                    error_exit "Docker service failed to start after all recovery attempts"
+                    log "Docker startup failed. Check: systemctl status docker" "$RED"
+                    error_exit "Docker service failed to start"
                 fi
+            fi
+        else
+            if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+                log "Auto mode: Docker failed to start, continuing without Docker" "$YELLOW"
+                return 0
+            else
+                error_exit "Docker service failed to start"
             fi
         fi
     fi
@@ -231,27 +241,45 @@ configure_docker_startup() {
 
 # Install Docker Compose standalone (optional)
 install_docker_compose_standalone() {
+    # Skip in auto mode to save time
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        log "Auto mode: Skipping Docker Compose standalone (plugin is sufficient)" "$BLUE"
+        return 0
+    fi
+    
     if confirm "Install Docker Compose standalone binary (in addition to plugin)?"; then
         log "Installing Docker Compose standalone..."
         
-        local compose_version=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -oP '"tag_name": "\K[^"]+')
-        
-        if [[ -n "$compose_version" ]]; then
-            curl -SL "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
-            chmod +x /usr/local/bin/docker-compose
+        # Get version with timeout and fallback
+        local compose_version
+        if compose_version=$(timeout 10 curl -s https://api.github.com/repos/docker/compose/releases/latest 2>/dev/null | grep -oP '"tag_name": "\K[^"]+'); then
+            log "Latest version: $compose_version"
             
-            # Create symbolic link for compatibility
-            ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-            
-            log "Docker Compose standalone installed (version $compose_version)"
+            # Download with progress and error handling
+            if curl -fsSL "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose; then
+                chmod +x /usr/local/bin/docker-compose
+                
+                # Create symbolic link for compatibility
+                ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+                
+                log "Docker Compose standalone installed (version $compose_version)" "$GREEN"
+            else
+                log "Failed to download Docker Compose standalone" "$YELLOW"
+            fi
         else
-            log "Could not determine latest Docker Compose version" "$YELLOW"
+            log "Could not determine latest Docker Compose version (timeout/network issue)" "$YELLOW"
         fi
     fi
 }
 
 # Configure Docker security
 configure_docker_security() {
+    # Skip advanced security in auto mode for reliability
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+        log "Auto mode: Skipping advanced Docker security (basic security applied)" "$BLUE"
+        return 0
+    fi
+    
     log "Configuring Docker security settings..."
     
     # Enable user namespace remapping (optional)
@@ -260,19 +288,23 @@ configure_docker_security() {
         if [[ -f /etc/docker/daemon.json ]] && [[ -s /etc/docker/daemon.json ]]; then
             # Backup and modify existing config
             cp /etc/docker/daemon.json /etc/docker/daemon.json.backup
-            python3 -c "import json; d=json.load(open('/etc/docker/daemon.json')); d['userns-remap']='default'; json.dump(d, open('/tmp/daemon.json', 'w'), indent=2)"
+            if python3 -c "import json; d=json.load(open('/etc/docker/daemon.json')); d['userns-remap']='default'; json.dump(d, open('/tmp/daemon.json', 'w'), indent=2)" 2>/dev/null; then
+                mv /tmp/daemon.json /etc/docker/daemon.json
+                log "User namespace remapping enabled"
+                log "Note: This may cause issues with some containers" "$YELLOW"
+            else
+                log "Failed to configure user namespace remapping" "$YELLOW"
+            fi
         else
             # Create new config
-            echo '{"userns-remap": "default"}' > /tmp/daemon.json
+            echo '{"userns-remap": "default"}' > /etc/docker/daemon.json
+            log "User namespace remapping enabled"
         fi
-        mv /tmp/daemon.json /etc/docker/daemon.json
-        
-        log "User namespace remapping enabled"
-        log "Note: This may cause issues with some containers" "$YELLOW"
     fi
     
     # Set up Docker content trust
     if confirm "Enable Docker Content Trust (image signature verification)?"; then
+        ensure_dir /etc/profile.d
         echo "export DOCKER_CONTENT_TRUST=1" >> /etc/profile.d/docker.sh
         log "Docker Content Trust enabled"
     fi
@@ -282,29 +314,48 @@ configure_docker_security() {
 test_docker_installation() {
     log "Testing Docker installation..."
     
-    # Test Docker
-    if docker run --rm hello-world > /dev/null 2>&1; then
-        log "Docker is working correctly!" "$GREEN"
+    # Quick version check first
+    if ! command_exists docker; then
+        log "Docker command not found" "$RED"
+        return 1
+    fi
+    
+    # Test Docker daemon connectivity (faster than running containers)
+    if docker info > /dev/null 2>&1; then
+        log "Docker daemon is running" "$GREEN"
     else
-        log "Docker test failed" "$RED"
+        log "Docker daemon is not responding" "$RED"
         if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
-            log "Auto mode: Continuing despite Docker test failure" "$YELLOW"
+            log "Auto mode: Continuing despite Docker daemon test failure" "$YELLOW"
+            return 0
         else
             return 1
         fi
     fi
     
-    # Test Docker Compose
+    # Quick hello-world test (only in interactive mode)
+    if [[ "${SETUP_AUTO_MODE:-false}" != "true" ]]; then
+        log "Running hello-world test..."
+        if timeout 30 docker run --rm hello-world > /dev/null 2>&1; then
+            log "Docker is working correctly!" "$GREEN"
+        else
+            log "Docker hello-world test failed (timeout or error)" "$YELLOW"
+        fi
+    else
+        log "Auto mode: Skipping hello-world test (saving time)" "$BLUE"
+    fi
+    
+    # Test Docker Compose (quick version check)
     if docker compose version > /dev/null 2>&1; then
-        log "Docker Compose plugin is working correctly!" "$GREEN"
-        docker compose version
+        log "Docker Compose plugin is working!" "$GREEN"
+        docker compose version | head -1
     else
         log "Docker Compose plugin test failed" "$YELLOW"
     fi
     
-    # Show Docker info
+    # Show essential Docker info
     log "Docker system information:" "$BLUE"
-    docker info | grep -E "Server Version:|Storage Driver:|Cgroup Driver:" || true
+    docker info 2>/dev/null | grep -E "Server Version:|Storage Driver:|Cgroup Driver:" | head -3 || true
 }
 
 # Create Docker directories

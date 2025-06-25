@@ -20,10 +20,25 @@ log() {
     echo -e "${color}[$(date +'%Y-%m-%d %H:%M:%S')] $message${NC}" | tee -a "$LOG_FILE"
 }
 
-# Error handling
+# Enhanced error handling
 error_exit() {
-    log "ERROR: $1" "$RED"
-    exit 1
+    local error_msg="$1"
+    local exit_code="${2:-1}"
+    
+    log "ERROR: $error_msg" "$RED"
+    
+    # Log additional context if available
+    if [[ -n "${BASH_LINENO:-}" ]] && [[ -n "${BASH_SOURCE:-}" ]]; then
+        log "Error occurred at line ${BASH_LINENO[1]} in ${BASH_SOURCE[1]}" "$RED"
+    fi
+    
+    # In auto mode, try to continue with non-critical errors
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]] && [[ "${SETUP_CONTINUE_ON_ERROR:-false}" == "true" ]]; then
+        log "Auto mode: Continuing despite error (exit code would be $exit_code)" "$YELLOW"
+        return $exit_code
+    fi
+    
+    exit $exit_code
 }
 
 # Check if command exists
@@ -36,15 +51,78 @@ package_installed() {
     dpkg -l "$1" 2>/dev/null | grep -q "^ii"
 }
 
-# Install package if not already installed
+# Install package if not already installed (assumes apt is updated)
 install_package() {
     local package="$1"
     if ! package_installed "$package"; then
         log "Installing $package..."
-        apt-get update -qq
         apt-get install -y -qq "$package" || error_exit "Failed to install $package"
     else
         log "$package is already installed" "$BLUE"
+    fi
+}
+
+# Install multiple packages efficiently in one command
+install_packages() {
+    local packages=("$@")
+    local to_install=()
+    
+    # Validate input
+    if [[ ${#packages[@]} -eq 0 ]]; then
+        log "No packages specified for installation" "$YELLOW"
+        return 0
+    fi
+    
+    # Check which packages need installation
+    for package in "${packages[@]}"; do
+        if [[ -z "$package" ]]; then
+            continue  # Skip empty package names
+        fi
+        
+        if ! package_installed "$package"; then
+            to_install+=("$package")
+        else
+            log "$package is already installed" "$BLUE"
+        fi
+    done
+    
+    # Install all needed packages in one command
+    if [[ ${#to_install[@]} -gt 0 ]]; then
+        log "Installing packages: ${to_install[*]}"
+        
+        # Set non-interactive mode
+        export DEBIAN_FRONTEND=noninteractive
+        
+        # Try installation with retry logic
+        local max_attempts=2
+        local attempt=1
+        
+        while [[ $attempt -le $max_attempts ]]; do
+            if apt-get install -y -qq "${to_install[@]}" 2>/dev/null; then
+                log "Successfully installed ${#to_install[@]} packages" "$GREEN"
+                return 0
+            fi
+            
+            log "Package installation attempt $attempt failed" "$YELLOW"
+            
+            if [[ $attempt -eq 1 ]]; then
+                # First failure: update package lists and retry
+                log "Updating package lists and retrying..."
+                apt-get update -qq 2>/dev/null || true
+            fi
+            
+            ((attempt++))
+        done
+        
+        # All attempts failed
+        if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+            log "Auto mode: Some packages failed to install, continuing" "$YELLOW"
+            return 0
+        else
+            error_exit "Failed to install packages: ${to_install[*]}"
+        fi
+    else
+        log "All packages already installed" "$BLUE"
     fi
 }
 
@@ -272,13 +350,33 @@ download_file() {
     return 1
 }
 
-# Check disk space
+# Check disk space with better error handling
 check_disk_space() {
     local required_mb="${1:-1000}"
-    local available_mb=$(df / | awk 'NR==2 {print int($4/1024)}')
+    
+    # Get available space with error handling
+    local available_mb
+    if ! available_mb=$(df / 2>/dev/null | awk 'NR==2 {print int($4/1024)}'); then
+        log "Warning: Could not check disk space" "$YELLOW"
+        return 0
+    fi
+    
+    if [[ -z "$available_mb" ]] || [[ ! "$available_mb" =~ ^[0-9]+$ ]]; then
+        log "Warning: Could not determine available disk space" "$YELLOW"
+        return 0
+    fi
     
     if [[ $available_mb -lt $required_mb ]]; then
-        error_exit "Insufficient disk space. Required: ${required_mb}MB, Available: ${available_mb}MB"
+        log "Insufficient disk space. Required: ${required_mb}MB, Available: ${available_mb}MB" "$RED"
+        
+        if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+            log "Auto mode: Continuing with low disk space warning" "$YELLOW"
+            return 0
+        else
+            error_exit "Insufficient disk space. Required: ${required_mb}MB, Available: ${available_mb}MB"
+        fi
+    else
+        log "Disk space check passed: ${available_mb}MB available" "$BLUE"
     fi
 }
 
@@ -293,10 +391,135 @@ add_line_if_not_exists() {
     fi
 }
 
+# Validate network connectivity
+check_network() {
+    local test_hosts=("8.8.8.8" "1.1.1.1")
+    
+    for host in "${test_hosts[@]}"; do
+        if ping -c 1 -W 5 "$host" > /dev/null 2>&1; then
+            return 0
+        fi
+    done
+    
+    log "Warning: Network connectivity check failed" "$YELLOW"
+    return 1
+}
+
+# Cleanup function for failed installations
+cleanup_failed_install() {
+    local package="$1"
+    log "Cleaning up failed installation of $package..." "$YELLOW"
+    
+    # Remove partially installed packages
+    apt-get remove --purge -y "$package" 2>/dev/null || true
+    apt-get autoremove -y 2>/dev/null || true
+    
+    # Clear any held locks
+    rm -f /var/lib/dpkg/lock* /var/cache/apt/archives/lock 2>/dev/null || true
+}
+
+# Validate username
+validate_username() {
+    local username="$1"
+    
+    # Check if username is empty
+    if [[ -z "$username" ]]; then
+        return 1
+    fi
+    
+    # Check length (1-32 characters)
+    if [[ ${#username} -gt 32 ]] || [[ ${#username} -lt 1 ]]; then
+        return 1
+    fi
+    
+    # Check valid characters (alphanumeric, underscore, hyphen)
+    if [[ ! "$username" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        return 1
+    fi
+    
+    # Check doesn't start with number or special char
+    if [[ "$username" =~ ^[0-9_-] ]]; then
+        return 1
+    fi
+    
+    # Check against reserved names
+    local reserved=("root" "daemon" "bin" "sys" "sync" "games" "man" "lp" "mail" "news" "uucp" "proxy" "www-data" "backup" "list" "irc" "gnats" "nobody" "systemd" "admin" "administrator")
+    for reserved_name in "${reserved[@]}"; do
+        if [[ "$username" == "$reserved_name" ]]; then
+            return 1
+        fi
+    done
+    
+    return 0
+}
+
+# Validate password strength
+validate_password() {
+    local password="$1"
+    
+    # Check minimum length
+    if [[ ${#password} -lt 8 ]]; then
+        return 1
+    fi
+    
+    # Check maximum length (reasonable limit)
+    if [[ ${#password} -gt 128 ]]; then
+        return 1
+    fi
+    
+    # Check contains at least one letter and one number
+    if [[ ! "$password" =~ [a-zA-Z] ]] || [[ ! "$password" =~ [0-9] ]]; then
+        return 1
+    fi
+    
+    return 0
+}
+
+# Validate SSH port
+validate_ssh_port() {
+    local port="$1"
+    
+    # Check if it's a number
+    if [[ ! "$port" =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
+    
+    # Check range (1024-65535, avoiding system ports)
+    if [[ $port -lt 1024 ]] || [[ $port -gt 65535 ]]; then
+        return 1
+    fi
+    
+    # Check if port is already in use
+    if netstat -tuln 2>/dev/null | grep -q ":${port} "; then
+        return 1
+    fi
+    
+    return 0
+}
+
+# Sanitize file path
+sanitize_path() {
+    local path="$1"
+    
+    # Remove potentially dangerous characters
+    path="${path//[^a-zA-Z0-9._/-]/}"
+    
+    # Remove double slashes
+    path="${path//\/\//\/}"
+    
+    # Remove trailing slash unless it's root
+    if [[ "$path" != "/" ]]; then
+        path="${path%/}"
+    fi
+    
+    echo "$path"
+}
+
 # Export all functions
-export -f log error_exit command_exists package_installed install_package
+export -f log error_exit command_exists package_installed install_package install_packages
 export -f backup_file update_config_line comment_line generate_password
 export -f create_user_if_not_exists service_running enable_service restart_service
-export -f port_open get_primary_interface get_primary_ip confirm
+export -f port_open get_primary_interface get_primary_ip confirm auto_input
 export -f check_ubuntu_version ensure_dir download_file check_disk_space
-export -f add_line_if_not_exists
+export -f add_line_if_not_exists check_network cleanup_failed_install
+export -f validate_username validate_password validate_ssh_port sanitize_path
