@@ -92,9 +92,9 @@ configure_timezone() {
 configure_hostname() {
     log "Current hostname: $(hostname)"
     
-    # Check if automated mode
-    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]] || [[ "${SETUP_CHANGE_HOSTNAME:-}" == "no" ]]; then
-        log "Keeping current hostname in automated mode" "$BLUE"
+    # Check if automated mode or explicitly disabled
+    if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]] || [[ "${SETUP_CHANGE_HOSTNAME:-no}" == "no" ]]; then
+        log "Keeping current hostname: $(hostname)" "$BLUE"
         return
     fi
     

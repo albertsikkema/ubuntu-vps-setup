@@ -42,8 +42,12 @@ create_sudo_user() {
     # Check if user already exists
     if id "$NEW_USER" &>/dev/null; then
         log "User $NEW_USER already exists" "$YELLOW"
-        if ! confirm "Continue with existing user?"; then
-            return 1
+        if [[ "${SETUP_AUTO_MODE:-false}" == "true" ]]; then
+            log "Auto mode: Continuing with existing user $NEW_USER" "$BLUE"
+        else
+            if ! confirm "Continue with existing user?"; then
+                return 1
+            fi
         fi
     else
         # Create user
