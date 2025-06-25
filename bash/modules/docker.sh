@@ -177,12 +177,34 @@ configure_docker_user() {
 configure_docker_startup() {
     log "Configuring Docker to start on boot..."
     
+    # Validate daemon.json before starting
+    if [[ -f /etc/docker/daemon.json ]]; then
+        if ! python3 -m json.tool /etc/docker/daemon.json > /dev/null 2>&1; then
+            log "Invalid Docker daemon configuration, removing..." "$YELLOW"
+            rm -f /etc/docker/daemon.json
+        fi
+    fi
+    
     # Enable Docker service
     systemctl enable docker.service
     systemctl enable containerd.service
     
-    # Start Docker
-    systemctl start docker.service
+    # Start Docker with error handling
+    if systemctl start docker.service; then
+        log "Docker service started successfully"
+    else
+        log "Docker service failed to start, checking logs..." "$YELLOW"
+        journalctl -xeu docker.service --no-pager -l | tail -10
+        
+        # Try starting without custom config
+        if [[ -f /etc/docker/daemon.json ]]; then
+            log "Removing daemon.json and retrying..." "$YELLOW"
+            mv /etc/docker/daemon.json /etc/docker/daemon.json.failed
+            systemctl start docker.service || error_exit "Docker service failed to start"
+        else
+            error_exit "Docker service failed to start"
+        fi
+    fi
     
     log "Docker configured to start on boot"
 }
@@ -327,8 +349,11 @@ main() {
     # Install extras
     install_docker_compose_standalone
     
-    # Restart Docker with new configuration
-    systemctl restart docker
+    # Restart Docker with new configuration if running
+    if systemctl is-active docker.service > /dev/null; then
+        log "Restarting Docker with new configuration..."
+        systemctl restart docker || log "Docker restart failed, but continuing..." "$YELLOW"
+    fi
     
     # Test installation
     test_docker_installation
