@@ -330,7 +330,7 @@ run_setup() {
         
         if [[ "$AUTO_MODE" == "true" ]]; then
             # Run in automated mode
-            ./vps-setup-main.sh --auto --modules="$DEFAULT_MODULES"
+            ./vps-setup-main.sh --auto --modules "$DEFAULT_MODULES"
         else
             # Run in interactive mode
             ./vps-setup-main.sh "$@"
