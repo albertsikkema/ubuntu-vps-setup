@@ -1,5 +1,17 @@
 # Ubuntu VPS Production Setup Tool
 
+> **⚠️ DISCLAIMER - WORK IN PROGRESS**
+> 
+> This project is currently under active development and should be considered **EXPERIMENTAL**. 
+>
+> - **NOT PRODUCTION READY** - Use at your own risk
+> - **NO WARRANTY** - I am not responsible for any damage, data loss, or security issues
+> - **TEST FIRST** - Always test on non-critical systems before production use
+> - **BACKUP DATA** - Ensure you have backups before running this script
+> - **SECURITY RISK** - This script makes significant system changes that could affect security
+>
+> By using this tool, you acknowledge that you understand these risks and accept full responsibility.
+
 🚀 **Complete automated setup for production-ready Ubuntu 24.10 VPS with security hardening, Docker support, and proper firewall configuration.**
 
 ## ⚡ Quick Start
