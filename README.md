@@ -1,141 +1,129 @@
-# Ubuntu VPS Production Setup Tool
+# Ubuntu Fresh Install Scripts
 
-> **⚠️ DISCLAIMER - WORK IN PROGRESS**
-> 
-> This project is currently under active development and should be considered **EXPERIMENTAL**. 
->
-> - **NOT PRODUCTION READY** - Use at your own risk
-> - **NO WARRANTY** - I am not responsible for any damage, data loss, or security issues
-> - **TEST FIRST** - Always test on non-critical systems before production use
-> - **BACKUP DATA** - Ensure you have backups before running this script
-> - **SECURITY RISK** - This script makes significant system changes that could affect security
->
-> By using this tool, you acknowledge that you understand these risks and accept full responsibility.
+Two scripts for setting up a fresh Ubuntu 24.04 server with security hardening and Docker.
 
-🚀 **Fast, focused setup for Ubuntu 24.10 VPS with Docker, SSH security, and firewall configuration.**
+## Quick Start
 
-## ⚡ Quick Start
+### 1. Generate SSH Keys (Client Machine)
 
-### Option 1: One-Liner (Recommended)
 ```bash
-curl -fsSL https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/bash/setup.sh | sudo bash -s -- --auto
+# Download and run the key generator
+curl -fsSL https://raw.githubusercontent.com/albertsikkema/server_install/main/ubuntu-fresh-install/generate-ssh-key.sh | bash
+
+# Or download and run locally
+wget https://raw.githubusercontent.com/albertsikkema/server_install/main/ubuntu-fresh-install/generate-ssh-key.sh
+chmod +x generate-ssh-key.sh
+./generate-ssh-key.sh [server-ip] [username]
 ```
 
-### Option 2: Download and Run Locally
+### 2. Setup Server (Ubuntu 24.04 Server)
+
 ```bash
-wget "https://github.com/albertsikkema/ubuntu-vps-setup/archive/refs/heads/main.tar.gz"
-tar -xzf main.tar.gz
-cd ubuntu-vps-setup-main/bash
-sudo ./setup.sh --auto
+# Download and run the server setup script
+curl -fsSL https://raw.githubusercontent.com/albertsikkema/server_install/main/ubuntu-fresh-install/ubuntu-setup.sh | bash -s -- <username> "<ssh-public-key>"
+
+# Or download and run locally
+wget https://raw.githubusercontent.com/albertsikkema/server_install/main/ubuntu-fresh-install/ubuntu-setup.sh
+chmod +x ubuntu-setup.sh
+./ubuntu-setup.sh <username> "<ssh-public-key>"
 ```
 
-Both commands will:
-- ✅ Update and secure your Ubuntu 24.10 VPS
-- ✅ Install Docker with UFW integration
-- ✅ Set up SSH hardening and firewall protection
-- ✅ Configure everything for Netherlands (nl-NL) with UTC timezone
-- ✅ Complete in 5-10 minutes with **minimal user interaction**
-
-## 🎯 What You Get
+## What Gets Configured
 
 ### Security
-- SSH hardening (port 2222, key-only auth)
-- UFW firewall with minimal attack surface
-- Docker containers protected by default
-- Essential security configurations
+- ✅ SSH hardening (disable root login, password auth)
+- ✅ UFW firewall with Docker integration
+- ✅ SSH key-only authentication
+- ✅ Connection limits and timeouts
 
-### Docker Integration
-- Docker CE + Compose from official repository
-- **Fixes Docker's UFW bypass security hole**
-- Use `ufw-docker` commands to manage container access
-- Containers NOT exposed to internet by default
+### Software
+- ✅ System updates and essential packages
+- ✅ Docker Engine and Docker Compose
+- ✅ UFW-Docker integration for container isolation
 
-## 📦 Modules Installed
+### Network
+- ✅ UFW firewall (ports 22, 80, 443 open)
+- ✅ Docker containers isolated by default
+- ✅ Easy container port management
 
-The setup includes these 6 essential modules:
+## Usage Examples
 
-| Module | Description | Purpose |
-|--------|-------------|---------|
-| **system_update** | System Update & Basic Setup | Updates packages, configures timezone/locale, installs essential tools |
-| **user_management** | User Management & Sudo Configuration | Creates secure sudo user with your credentials |
-| **ssh_hardening** | SSH Security Hardening | Secures SSH (port 2222, key-only auth, disable root) |
-| **firewall** | UFW Firewall Configuration | Sets up UFW firewall with HTTP/HTTPS access |
-| **docker** | Docker & Docker Compose Installation | Installs Docker CE + Compose from official repository |
-| **docker_ufw** | Docker-UFW Integration Fix | Fixes Docker's UFW bypass security issue |
-
-## 📁 Repository Structure
-
-```
-bash/                           # Main tool directory
-├── setup.sh                   # Bootstrap script
-├── modules/                    # Individual setup modules
-├── configs/                    # Configuration templates
-├── AUTOMATED_SETUP_GUIDE.md   # Complete usage guide
-└── README.md                   # Full documentation
-```
-
-## 🔧 Usage Options
-
-### Full Automation (Recommended)
+### Generate Keys for Specific Server
 ```bash
-sudo ./setup.sh --auto
+./generate-ssh-key.sh 192.168.1.100 myuser
 ```
 
-### Custom Settings
+### Setup Server with Generated Key
 ```bash
-sudo ./setup.sh --auto --username=myuser --ssh-port=3333
+# Copy the public key from the output above, then:
+./ubuntu-setup.sh myuser "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... myuser@192.168.1.100"
 ```
 
-### Configuration File
+### Manage Docker Container Firewall
 ```bash
-sudo ./setup.sh --config=/path/to/config.conf
+# After setup, use these commands on the server:
+docker-firewall.sh allow nginx 80        # Allow HTTP to nginx container
+docker-firewall.sh allow mysql 3306      # Allow MySQL access
+docker-firewall.sh delete nginx          # Remove nginx firewall rules
+docker-firewall.sh list                  # Show all rules
 ```
 
-### Interactive Mode
+## Management Scripts (Installed on Server)
+
+- `docker-status.sh` - Docker system status
+- `ufw-status.sh` - Firewall status and rules
+- `docker-firewall.sh` - Docker container firewall management
+
+## Requirements
+
+### Client Machine
+- Bash shell
+- `curl` or `wget`
+- SSH client
+
+### Server
+- Fresh Ubuntu 24.04 installation
+- User account already created
+- Sudo privileges for the user
+- Internet connection
+
+## Security Features
+
+- 🔒 Root SSH login disabled
+- 🔒 Password authentication disabled  
+- 🔒 SSH key-only authentication
+- 🔒 UFW firewall enabled
+- 🔒 Docker containers isolated by default
+- 🔒 Connection limits and session timeouts
+- 🔒 Comprehensive security logging
+
+## Troubleshooting
+
+### Locked Out of SSH
+1. Use your server provider's console/VNC access
+2. Restore SSH config: `sudo cp /etc/ssh/sshd_config.original /etc/ssh/sshd_config`
+3. Restart SSH: `sudo systemctl restart ssh`
+
+### Docker Permission Issues
 ```bash
-sudo ./setup.sh
+# Add user to docker group (if not done automatically)
+sudo usermod -aG docker $USER
+newgrp docker
 ```
 
-## 📚 Documentation
+### Firewall Issues
+```bash
+# Check UFW status
+sudo ufw status verbose
 
-- **[Quick Start Guide](bash/AUTOMATED_SETUP_GUIDE.md)** - Step-by-step automation guide
-- **[Full Documentation](bash/README.md)** - Complete feature documentation
-- **[Completion Summary](bash/COMPLETION_SUMMARY.md)** - Feature overview
+# Reset UFW if needed
+sudo ufw --force reset
+sudo ufw default deny incoming
+sudo ufw default allow outgoing  
+sudo ufw allow 22/tcp
+sudo ufw --force enable
+```
 
-## ⚙️ Default Configuration
+## License
 
-| Setting | Value | Customizable |
-|---------|-------|--------------|
-| **Timezone** | UTC | ❌ (always UTC) |
-| **Locale** | English + Dutch formatting | ❌ |
-| **Username** | `admin` | ✅ `--username=` |
-| **SSH Port** | `2222` | ✅ `--ssh-port=` |
-| **Firewall** | UFW enabled | ❌ |
-| **Docker** | With UFW integration | ❌ |
-
-## 🛡️ Security Features
-
-- **SSH**: Port 2222, key-only auth, root disabled
-- **Firewall**: UFW with rate limiting
-- **Docker**: Containers protected by UFW
-- **System**: Essential hardening, fail2ban
-- **User Management**: Secure sudo user creation
-
-## 🔗 Quick Links
-
-- **🚀 [One-Liner Setup](bash/AUTOMATED_SETUP_GUIDE.md#-one-liner-installation)**
-- **📖 [Full Documentation](bash/README.md)**
-- **⚙️ [Configuration Options](bash/configs/default.conf)**
-- **🐛 [Issues](https://github.com/albertsikkema/ubuntu-vps-setup/issues)**
-
-## 📄 License
-
-MIT License - See [LICENSE](LICENSE) file for details.
-
----
-
-**Perfect for:** Developers needing a quick Docker-ready VPS, system administrators, simple production deployments.
-
-**Tested on:** Ubuntu 24.10, Ubuntu 24.04
-
-**Features:** Fast setup (5-10 minutes), user-controlled credentials, essential security, Docker + UFW integration.
+MIT License - Feel free to modify and distribute.
