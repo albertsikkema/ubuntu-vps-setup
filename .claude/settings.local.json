@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(bash:*)",
+      "Bash(/Users/albert/Documents/Dev_Prive/server_install/ubuntu-setup.sh)",
+      "Bash(true)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(chmod:*)"
+    ],
+    "deny": []
+  }
+}
