@@ -9,7 +9,8 @@
       "Bash(mkdir:*)",
       "Bash(mv:*)",
       "Bash(chmod:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

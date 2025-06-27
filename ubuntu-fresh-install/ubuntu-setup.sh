@@ -6,6 +6,11 @@ set -e
 # This script performs initial setup and hardening of an Ubuntu 24.04 server
 # Usage: ./ubuntu-setup.sh <username> "<ssh-public-key>"
 # Or with curl: curl -fsSL <raw-github-url>/ubuntu-setup.sh | bash -s -- <username> "<ssh-public-key>"
+#
+# ⚠️  DISCLAIMER: USE AT YOUR OWN RISK
+# This script is provided "as is" without warranty. NOT intended for production
+# environments without thorough testing. Authors are NOT responsible for any
+# damage, data loss, or security breaches. Always test on non-production servers first.
 
 echo "======================================"
 echo "Ubuntu 24.04 Server Setup Script"
@@ -287,18 +292,18 @@ Banner /etc/ssh/banner
 
 EOF
 
-# Create SSH banner
+# Create SSH banner with hostname and IP
 echo "Creating SSH banner..."
-sudo tee /etc/ssh/banner > /dev/null << 'EOF'
+HOSTNAME=$(hostname)
+IP_ADDRESS=$(hostname -I | awk '{print $1}')
+sudo tee /etc/ssh/banner > /dev/null << EOF
 ================================================================================
-                            AUTHORIZED ACCESS ONLY
+                        🏠 Welcome to $HOSTNAME! 🏠
 ================================================================================
 
-This computer system is private property and is for authorized use only.
-Unauthorized use of this system is prohibited and may be subject to criminal
-and/or civil penalties. All activities on this system are logged and monitored.
+Hello! You've successfully connected to server $HOSTNAME ($IP_ADDRESS).
 
-By accessing this system, you agree to comply with all applicable policies.
+Enjoy your stay!
 
 ================================================================================
 EOF
