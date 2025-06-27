@@ -1,6 +1,6 @@
 # Ubuntu Fresh Install Scripts
 
-Two scripts for setting up a fresh Ubuntu 24.04 server with security hardening and Docker.
+Two scripts for setting up a fresh Ubuntu 24.04 server with security hardening and Docker. Make sure a user with sudo access is already setup.
 
 ## Quick Start
 
@@ -67,6 +67,52 @@ docker-firewall.sh delete nginx          # Remove nginx firewall rules
 docker-firewall.sh list                  # Show all rules
 ```
 
+## UFW-Docker Integration
+
+This setup includes **ufw-docker** - a critical security tool that fixes the Docker and UFW security flaw without disabling iptables.
+
+### The Problem
+By default, Docker bypasses UFW firewall rules by directly manipulating iptables. This means:
+- Published Docker ports (`-p 8080:80`) are accessible from anywhere, regardless of UFW settings
+- UFW rules like `ufw deny 8080` have no effect on Docker containers
+- This creates a significant security vulnerability
+
+### The Solution: ufw-docker
+The setup automatically installs [ufw-docker](https://github.com/chaifeng/ufw-docker) which:
+- ✅ **Integrates UFW with Docker**: Makes Docker respect UFW firewall rules
+- ✅ **Container Isolation**: Docker containers are blocked from external access by default
+- ✅ **Granular Control**: Allow specific container ports only when needed
+- ✅ **Maintains Performance**: No need to disable Docker's iptables feature
+
+### How It Works
+```bash
+# Without ufw-docker (INSECURE):
+docker run -p 8080:80 nginx    # Port 8080 accessible from anywhere!
+ufw deny 8080                  # This rule is ignored by Docker
+
+# With ufw-docker (SECURE):
+docker run -p 8080:80 nginx               # Port 8080 blocked by default
+docker-firewall.sh allow nginx 80         # Explicitly allow access
+# or: ufw-docker allow nginx 80           # Direct ufw-docker command
+```
+
+### Direct ufw-docker Commands
+```bash
+# Allow container port access
+ufw-docker allow container_name port
+
+# Examples:
+ufw-docker allow nginx 80         # Allow HTTP to nginx
+ufw-docker allow api-server 3000  # Allow API access
+ufw-docker allow database 5432    # Allow PostgreSQL access
+
+# Remove container access
+ufw-docker delete allow container_name
+
+# List Docker firewall rules
+ufw-docker list
+```
+
 ## Management Scripts (Installed on Server)
 
 - `docker-status.sh` - Docker system status
@@ -122,6 +168,25 @@ sudo ufw default allow outgoing
 sudo ufw allow 22/tcp
 sudo ufw --force enable
 ```
+
+## ⚠️ Disclaimer
+
+**IMPORTANT: USE AT YOUR OWN RISK**
+
+- These scripts are provided "as is" without warranty of any kind
+- **NOT intended for production environments** without thorough testing
+- The authors are **NOT responsible** for any damage, data loss, or security breaches
+- These scripts modify critical system security settings
+- **Always test on non-production servers first**
+- Ensure you have alternative access methods before running
+- Review and understand all code before execution
+- Use of these scripts is entirely at your own risk
+
+**Production Recommendations:**
+- Perform comprehensive testing in staging environments
+- Have backup and recovery procedures in place
+- Review all security configurations for your specific requirements
+- Consider professional security auditing for production deployments
 
 ## License
 

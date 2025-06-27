@@ -6,6 +6,10 @@ set -e
 # This script generates an SSH key pair for secure server access
 # Usage: ./generate-ssh-key.sh [server-ip] [username]
 # Or with curl: curl -fsSL <raw-github-url>/generate-ssh-key.sh | bash
+#
+# ⚠️  DISCLAIMER: USE AT YOUR OWN RISK
+# This script is provided "as is" without warranty. Review and understand
+# all code before execution. Use entirely at your own risk.
 
 echo "======================================"
 echo "SSH Key Generation Script"
