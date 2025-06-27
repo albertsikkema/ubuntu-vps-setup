@@ -8,11 +8,10 @@ Two scripts for setting up a fresh Ubuntu 24.04 server with security hardening a
 
 ```bash
 # Download and run the key generator
-curl -fsSL https://raw.githubusercontent.com/ubuntu-vps-setup/server_install/main/ubuntu-fresh-install/generate-ssh-key.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ubuntu-vps-setup/server_install/refs/heads/main/generate-ssh-key.sh | bash
 
 # Or download and run locally
-wget https://raw.githubusercontent.com/ubuntu-vps-setup/server_install/main/ubuntu-fresh-install/generate-ssh-key.sh
-chmod +x generate-ssh-key.sh
+wget https://raw.githubusercontent.com/ubuntu-vps-setup/refs/heads/main/generate-ssh-key.sh
 ./generate-ssh-key.sh [server-ip] [username]
 ```
 
@@ -20,10 +19,10 @@ chmod +x generate-ssh-key.sh
 
 ```bash
 # Download and run the server setup script
-curl -fsSL https://raw.githubusercontent.com/ubuntu-vps-setup/server_install/main/ubuntu-fresh-install/ubuntu-setup.sh | bash -s -- <username> "<ssh-public-key>"
+curl -fsSL https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/refs/heads/main/ubuntu-fresh-install/ubuntu-setup.sh | bash -s -- <username> "<ssh-public-key>"
 
 # Or download and run locally
-wget https://raw.githubusercontent.com/ubuntu-vps-setup/server_install/main/ubuntu-fresh-install/ubuntu-setup.sh
+wget https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/refs/heads/main/ubuntu-fresh-install/ubuntu-setup.sh
 chmod +x ubuntu-setup.sh
 ./ubuntu-setup.sh <username> "<ssh-public-key>"
 ```
