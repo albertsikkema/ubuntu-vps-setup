@@ -471,22 +471,22 @@ sudo ufw allow 80/tcp comment 'HTTP'
 # Allow HTTPS (port 443)
 sudo ufw allow 443/tcp comment 'HTTPS'
 
+# Enable UFW first (required for ufw-docker integration)
+echo "Enabling UFW firewall..."
+sudo ufw --force enable
+
 # Download and install ufw-docker script
 echo "Installing ufw-docker integration..."
 sudo wget -O /usr/local/bin/ufw-docker https://github.com/chaifeng/ufw-docker/raw/master/ufw-docker
 sudo chmod +x /usr/local/bin/ufw-docker
 
-# Install ufw-docker configuration
+# Install ufw-docker configuration (now that UFW is enabled)
 echo "Configuring ufw-docker integration..."
 sudo /usr/local/bin/ufw-docker install
 
 # Create backup of UFW rules
 echo "Creating backup of UFW configuration..."
 sudo cp /etc/ufw/after.rules /etc/ufw/after.rules.backup
-
-# Enable UFW
-echo "Enabling UFW firewall..."
-sudo ufw --force enable
 
 # Verify UFW status
 echo "Checking UFW status..."
