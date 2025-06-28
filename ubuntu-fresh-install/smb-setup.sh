@@ -313,12 +313,24 @@ fi
 # Setup Samba password
 print_info "Setting Samba password for user: $SMB_USER"
 print_warning "You will be prompted to enter the password twice"
-if sudo smbpasswd -a "$SMB_USER"; then
-    sudo smbpasswd -e "$SMB_USER" > /dev/null 2>&1
-    print_success "Samba user configured"
+if [ -t 0 ]; then
+    # Script is running interactively
+    if sudo smbpasswd -a "$SMB_USER"; then
+        sudo smbpasswd -e "$SMB_USER" > /dev/null 2>&1
+        print_success "Samba user configured"
+    else
+        print_error "Failed to set Samba password"
+        exit 1
+    fi
 else
-    print_error "Failed to set Samba password"
-    exit 1
+    # Script is being piped, use stdin redirection
+    if sudo smbpasswd -a "$SMB_USER" < /dev/tty; then
+        sudo smbpasswd -e "$SMB_USER" > /dev/null 2>&1
+        print_success "Samba user configured"
+    else
+        print_error "Failed to set Samba password"
+        exit 1
+    fi
 fi
 
 # Step 5: Configure firewall
