@@ -116,7 +116,11 @@ fi
 # Check Ubuntu version
 if ! grep -q "Ubuntu 24.04" /etc/os-release && ! grep -q "Ubuntu 22.04" /etc/os-release; then
     print_warning "This script is designed for Ubuntu 24.04/22.04"
-    read -p "Continue anyway? (y/N): " -n 1 -r
+    if [ -t 0 ]; then
+        read -p "Continue anyway? (y/N): " -n 1 -r
+    else
+        read -p "Continue anyway? (y/N): " -n 1 -r < /dev/tty
+    fi
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         exit 1
@@ -138,15 +142,27 @@ done
 
 # Interactive mode if parameters missing
 if [[ -z "$SHARE_NAME" ]]; then
-    read -p "Enter share name (e.g., 'shared'): " SHARE_NAME
+    if [ -t 0 ]; then
+        read -p "Enter share name (e.g., 'shared'): " SHARE_NAME
+    else
+        read -p "Enter share name (e.g., 'shared'): " SHARE_NAME < /dev/tty
+    fi
 fi
 
 if [[ -z "$SHARE_PATH" ]]; then
-    read -p "Enter share path (e.g., '/srv/samba/shared'): " SHARE_PATH
+    if [ -t 0 ]; then
+        read -p "Enter share path (e.g., '/srv/samba/shared'): " SHARE_PATH
+    else
+        read -p "Enter share path (e.g., '/srv/samba/shared'): " SHARE_PATH < /dev/tty
+    fi
 fi
 
 if [[ "$SMB_USER" == "$USER" ]]; then
-    read -p "Enter username for Samba access (default: $USER): " input_user
+    if [ -t 0 ]; then
+        read -p "Enter username for Samba access (default: $USER): " input_user
+    else
+        read -p "Enter username for Samba access (default: $USER): " input_user < /dev/tty
+    fi
     SMB_USER="${input_user:-$USER}"
 fi
 
@@ -176,7 +192,13 @@ echo "  Read-only: $READ_ONLY"
 echo
 
 # Confirmation prompt
-read -p "Proceed with Samba setup? (y/N): " -n 1 -r
+if [ -t 0 ]; then
+    # Script is running interactively
+    read -p "Proceed with Samba setup? (y/N): " -n 1 -r
+else
+    # Script is being piped, read from terminal
+    read -p "Proceed with Samba setup? (y/N): " -n 1 -r < /dev/tty
+fi
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     print_warning "Setup cancelled"
@@ -236,7 +258,11 @@ SHARE_CONFIG="
 # Check if share already exists
 if sudo grep -q "\\[$SHARE_NAME\\]" /etc/samba/smb.conf; then
     print_warning "Share [$SHARE_NAME] already exists in smb.conf"
-    read -p "Overwrite existing configuration? (y/N): " -n 1 -r
+    if [ -t 0 ]; then
+        read -p "Overwrite existing configuration? (y/N): " -n 1 -r
+    else
+        read -p "Overwrite existing configuration? (y/N): " -n 1 -r < /dev/tty
+    fi
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         # Remove existing share configuration
@@ -270,7 +296,11 @@ print_step "Step 4/6: Setting up Samba user"
 # Check if system user exists
 if ! id "$SMB_USER" &>/dev/null; then
     print_error "System user '$SMB_USER' does not exist"
-    read -p "Create system user '$SMB_USER'? (y/N): " -n 1 -r
+    if [ -t 0 ]; then
+        read -p "Create system user '$SMB_USER'? (y/N): " -n 1 -r
+    else
+        read -p "Create system user '$SMB_USER'? (y/N): " -n 1 -r < /dev/tty
+    fi
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         sudo useradd -m -s /bin/bash "$SMB_USER"
