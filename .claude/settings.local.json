@@ -11,7 +11,8 @@
       "Bash(chmod:*)",
       "Bash(git add:*)",
       "Bash(ls:*)",
-      "Bash(/Users/albert/Documents/Dev_Prive/server_install/firewall-test.sh:*)"
+      "Bash(/Users/albert/Documents/Dev_Prive/server_install/firewall-test.sh:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }
