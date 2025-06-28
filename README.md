@@ -1,6 +1,6 @@
 # Ubuntu Fresh Install Scripts
 
-Two scripts for setting up a fresh Ubuntu 24.04 server with security hardening and Docker. Make sure a user with sudo access is already setup, which is the default for installing Ubuntu Server from the official source: https://ubuntu.com/download/server.
+Three scripts for setting up a fresh Ubuntu 24.04 server with security hardening, Docker, and file sharing capabilities. Make sure a user with sudo access is already setup, which is the default for installing Ubuntu Server from the official source: https://ubuntu.com/download/server.
 
 ## Quick Start
 
@@ -27,6 +27,18 @@ chmod +x ubuntu-setup.sh
 ./ubuntu-setup.sh <username> "<ssh-public-key>"
 ```
 
+### 3. Setup SMB File Sharing (Optional)
+
+```bash
+# Download and run the SMB setup script
+curl -fsSL https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/ubuntu-fresh-install/smb-setup.sh | bash -s -- <share_name> <share_path> [username] [--read-only]
+
+# Or download and run locally
+wget https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/ubuntu-fresh-install/smb-setup.sh
+chmod +x smb-setup.sh
+./smb-setup.sh shared /srv/samba/shared
+```
+
 ## What Gets Configured
 
 ### Security
@@ -44,6 +56,13 @@ chmod +x ubuntu-setup.sh
 - ✅ UFW firewall (ports 22, 80, 443 open)
 - ✅ Docker containers isolated by default
 - ✅ Easy container port management
+- ✅ SMB/CIFS ports configured when using SMB setup
+
+### File Sharing (Optional)
+- ✅ Samba (SMB/CIFS) server installation
+- ✅ Authenticated file sharing
+- ✅ Read-only and read-write share options
+- ✅ SMB user management tools
 
 ## Usage Examples
 
@@ -65,6 +84,18 @@ docker-firewall.sh allow nginx 80        # Allow HTTP to nginx container
 docker-firewall.sh allow mysql 3306      # Allow MySQL access
 docker-firewall.sh delete nginx          # Remove nginx firewall rules
 docker-firewall.sh list                  # Show all rules
+```
+
+### Setup SMB File Sharing
+```bash
+# Create a read-write share
+./smb-setup.sh shared /srv/samba/shared
+
+# Create a read-only share for specific user
+./smb-setup.sh documents /home/john/Documents john --read-only
+
+# Interactive mode (prompts for parameters)
+./smb-setup.sh
 ```
 
 ## UFW-Docker Integration
@@ -115,9 +146,14 @@ ufw-docker list
 
 ## Management Scripts (Installed on Server)
 
+### Docker & Firewall
 - `docker-status.sh` - Docker system status
 - `ufw-status.sh` - Firewall status and rules
 - `docker-firewall.sh` - Docker container firewall management
+
+### SMB/File Sharing (if installed)
+- `smb-status.sh` - Samba service status and active connections
+- `smb-users.sh` - Manage Samba users (add, remove, enable, disable)
 
 ## Requirements
 
@@ -167,6 +203,36 @@ sudo ufw default deny incoming
 sudo ufw default allow outgoing  
 sudo ufw allow 22/tcp
 sudo ufw --force enable
+```
+
+### SMB Connection Issues
+```bash
+# Check Samba status
+sudo systemctl status smbd nmbd
+
+# View Samba logs
+sudo tail -f /var/log/samba/log.smbd
+
+# Test configuration
+sudo testparm
+
+# List active connections
+sudo smbstatus
+```
+
+### Connect to SMB Shares
+```bash
+# Windows
+\\server-ip\share-name
+
+# macOS
+smb://server-ip/share-name
+
+# Linux (command line)
+smbclient //server-ip/share-name -U username
+
+# Linux (mount)
+sudo mount -t cifs //server-ip/share-name /mnt/point -o username=user
 ```
 
 ## ⚠️ Disclaimer
