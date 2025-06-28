@@ -177,7 +177,6 @@ echo
 
 # Confirmation prompt
 read -p "Proceed with Samba setup? (y/N): " -n 1 -r
-
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     print_warning "Setup cancelled"
