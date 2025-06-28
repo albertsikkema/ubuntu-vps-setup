@@ -229,8 +229,8 @@ GLOBAL_SECURITY_CONFIG="
 
 # Check if security config already exists
 if ! sudo grep -q "# SMB3 Security Configuration" /etc/samba/smb.conf; then
-    # Add security settings to [global] section
-    sudo sed -i '/\[global\]/a\'"$GLOBAL_SECURITY_CONFIG" /etc/samba/smb.conf
+    # Add security settings to [global] section using a temporary file
+    echo "$GLOBAL_SECURITY_CONFIG" | sudo tee -a /etc/samba/smb.conf > /dev/null
     print_success "Added SMB3 encryption and security settings"
 else
     print_info "SMB3 security configuration already present"
