@@ -258,9 +258,15 @@ if sudo grep -q "\\[$SHARE_NAME\\]" /etc/samba/smb.conf; then
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_info "Overwriting existing configuration..."
-            # Remove existing share configuration
-            sudo sed -i "/\\[$SHARE_NAME\\]/,/^\\[/{ /^\\[/!d }" /etc/samba/smb.conf
-            sudo sed -i "/\\[$SHARE_NAME\\]/d" /etc/samba/smb.conf
+            # Remove existing share configuration using awk (more reliable than sed)
+            sudo awk -v share="$SHARE_NAME" '
+                BEGIN { in_share = 0 }
+                /^\[/ { 
+                    if ($0 == "[" share "]") { in_share = 1; next }
+                    else { in_share = 0 }
+                }
+                !in_share { print }
+            ' /etc/samba/smb.conf > /tmp/smb.conf.tmp && sudo mv /tmp/smb.conf.tmp /etc/samba/smb.conf
         else
             print_warning "Skipping share configuration - share already exists"
             exit 0
@@ -268,9 +274,15 @@ if sudo grep -q "\\[$SHARE_NAME\\]" /etc/samba/smb.conf; then
     else
         # Running non-interactively (via curl) - automatically overwrite
         print_info "Overwriting existing configuration..."
-        # Remove existing share configuration
-        sudo sed -i "/\\[$SHARE_NAME\\]/,/^\\[/{ /^\\[/!d }" /etc/samba/smb.conf
-        sudo sed -i "/\\[$SHARE_NAME\\]/d" /etc/samba/smb.conf
+        # Remove existing share configuration using awk (more reliable than sed)
+        sudo awk -v share="$SHARE_NAME" '
+            BEGIN { in_share = 0 }
+            /^\[/ { 
+                if ($0 == "[" share "]") { in_share = 1; next }
+                else { in_share = 0 }
+            }
+            !in_share { print }
+        ' /etc/samba/smb.conf > /tmp/smb.conf.tmp && sudo mv /tmp/smb.conf.tmp /etc/samba/smb.conf
     fi
 fi
 
@@ -341,7 +353,7 @@ echo "=== Configured Shares ==="
 sudo smbstatus -S 2>/dev/null || testparm -s 2>/dev/null | grep "^\[" | grep -v "^\[global\]" | grep -v "^\[printers\]" | grep -v "^\[print"
 echo
 echo "=== Samba Users ==="
-sudo pdbedit -L -v | grep -E "^Unix|^User" | sed 'N;s/\n/ - /'
+sudo pdbedit -L -v | grep -E "^Unix|^User" | awk 'NR%2{printf "%s - ",$0;next;}1'
 EOF
 
 sudo chmod +x /usr/local/bin/smb-status.sh
