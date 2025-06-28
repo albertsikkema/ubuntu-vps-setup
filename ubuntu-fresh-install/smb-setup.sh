@@ -4,8 +4,8 @@ set -e
 
 # Script: smb-setup.sh
 # Description: Setup and configure Samba (SMB) file sharing on Ubuntu 24.04
-# Usage: ./smb-setup.sh [share_name] [share_path] [username] [--read-only]
-#        curl -fsSL https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/ubuntu-fresh-install/smb-setup.sh | bash -s -- share_name share_path username [--read-only]
+# Usage: ./smb-setup.sh <share_name> <share_path> <username> <password> [--read-only]
+#        curl -fsSL https://raw.githubusercontent.com/albertsikkema/ubuntu-vps-setup/main/ubuntu-fresh-install/smb-setup.sh | bash -s -- share_name share_path username password [--read-only]
 # 
 # This script automates the setup of Samba file sharing on Ubuntu servers including:
 # - Installing Samba packages
@@ -52,21 +52,22 @@ Samba (SMB) Setup Script for Ubuntu 24.04
 This script automates the setup of Samba file sharing on Ubuntu servers.
 
 Usage:
-  ./smb-setup.sh [share_name] [share_path] [username] [--read-only]
+  ./smb-setup.sh <share_name> <share_path> <username> <password> [--read-only]
   
   Or via curl:
-  curl -fsSL <url> | bash -s -- share_name share_path username [--read-only]
+  curl -fsSL <url> | bash -s -- share_name share_path username password [--read-only]
 
 Parameters:
   share_name    Name of the SMB share (e.g., "shared", "documents")
   share_path    Path to share (e.g., "/srv/samba/shared")
-  username      User for Samba access (optional, defaults to current user)
+  username      User for Samba access
+  password      Password for Samba access
   --read-only   Make share read-only (optional)
 
 Examples:
-  ./smb-setup.sh shared /srv/samba/shared
-  ./smb-setup.sh documents /home/user/Documents user --read-only
-  ./smb-setup.sh media /media/storage mediauser
+  ./smb-setup.sh shared /srv/samba/shared john mypassword
+  ./smb-setup.sh documents /home/user/Documents user pass123 --read-only
+  ./smb-setup.sh media /media/storage mediauser mediapass
 
 What this script does:
   1. Installs Samba packages
@@ -116,64 +117,26 @@ fi
 # Check Ubuntu version
 if ! grep -q "Ubuntu 24.04" /etc/os-release && ! grep -q "Ubuntu 22.04" /etc/os-release; then
     print_warning "This script is designed for Ubuntu 24.04/22.04"
-    if [ -t 0 ]; then
-        read -p "Continue anyway? (y/N): " -n 1 -r
-    else
-        read -p "Continue anyway? (y/N): " -n 1 -r < /dev/tty
-    fi
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
+    print_warning "Continuing anyway..."
 fi
 
 # Parse parameters
 SHARE_NAME="${1:-}"
 SHARE_PATH="${2:-}"
-SMB_USER="${3:-$USER}"
+SMB_USER="${3:-}"
+SMB_PASSWORD="${4:-}"
 READ_ONLY=false
 
 # Check for read-only flag
-for arg in "$@"; do
-    if [[ "$arg" == "--read-only" ]]; then
-        READ_ONLY=true
-    fi
-done
-
-# Interactive mode if parameters missing
-if [[ -z "$SHARE_NAME" ]]; then
-    if [ -t 0 ]; then
-        read -p "Enter share name (e.g., 'shared'): " SHARE_NAME
-    else
-        read -p "Enter share name (e.g., 'shared'): " SHARE_NAME < /dev/tty
-    fi
+if [[ "$5" == "--read-only" ]]; then
+    READ_ONLY=true
 fi
 
-if [[ -z "$SHARE_PATH" ]]; then
-    if [ -t 0 ]; then
-        read -p "Enter share path (e.g., '/srv/samba/shared'): " SHARE_PATH
-    else
-        read -p "Enter share path (e.g., '/srv/samba/shared'): " SHARE_PATH < /dev/tty
-    fi
-fi
-
-if [[ "$SMB_USER" == "$USER" ]]; then
-    if [ -t 0 ]; then
-        read -p "Enter username for Samba access (default: $USER): " input_user
-    else
-        read -p "Enter username for Samba access (default: $USER): " input_user < /dev/tty
-    fi
-    SMB_USER="${input_user:-$USER}"
-fi
-
-# Validate parameters
-if [[ -z "$SHARE_NAME" ]]; then
-    print_error "Share name cannot be empty"
-    exit 1
-fi
-
-if [[ -z "$SHARE_PATH" ]]; then
-    print_error "Share path cannot be empty"
+# Validate required parameters
+if [[ -z "$SHARE_NAME" ]] || [[ -z "$SHARE_PATH" ]] || [[ -z "$SMB_USER" ]] || [[ -z "$SMB_PASSWORD" ]]; then
+    print_error "Missing required parameters"
+    echo "Usage: $0 <share_name> <share_path> <username> <password> [--read-only]"
+    echo "Example: $0 shared /srv/samba/shared john mypassword"
     exit 1
 fi
 
@@ -191,19 +154,7 @@ echo "  Samba User: $SMB_USER"
 echo "  Read-only: $READ_ONLY"
 echo
 
-# Confirmation prompt
-if [ -t 0 ]; then
-    # Script is running interactively
-    read -p "Proceed with Samba setup? (y/N): " -n 1 -r
-else
-    # Script is being piped, read from terminal
-    read -p "Proceed with Samba setup? (y/N): " -n 1 -r < /dev/tty
-fi
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    print_warning "Setup cancelled"
-    exit 0
-fi
+print_info "Starting Samba setup..."
 
 # Step 1: Install Samba packages
 print_step "Step 1/6: Installing Samba packages"
@@ -258,27 +209,15 @@ SHARE_CONFIG="
 # Check if share already exists
 if sudo grep -q "\\[$SHARE_NAME\\]" /etc/samba/smb.conf; then
     print_warning "Share [$SHARE_NAME] already exists in smb.conf"
-    if [ -t 0 ]; then
-        read -p "Overwrite existing configuration? (y/N): " -n 1 -r
-    else
-        read -p "Overwrite existing configuration? (y/N): " -n 1 -r < /dev/tty
-    fi
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        # Remove existing share configuration
-        sudo sed -i "/\\[$SHARE_NAME\\]/,/^\\[/{ /^\\[/!d }" /etc/samba/smb.conf
-        sudo sed -i "/\\[$SHARE_NAME\\]/d" /etc/samba/smb.conf
-    else
-        print_warning "Skipping smb.conf modification"
-        SKIP_SMB_CONFIG=true
-    fi
+    print_info "Overwriting existing configuration..."
+    # Remove existing share configuration
+    sudo sed -i "/\\[$SHARE_NAME\\]/,/^\\[/{ /^\\[/!d }" /etc/samba/smb.conf
+    sudo sed -i "/\\[$SHARE_NAME\\]/d" /etc/samba/smb.conf
 fi
 
-if [[ "$SKIP_SMB_CONFIG" != true ]]; then
-    # Add share configuration
-    echo "$SHARE_CONFIG" | sudo tee -a /etc/samba/smb.conf > /dev/null
-    print_success "Added share configuration to smb.conf"
-fi
+# Add share configuration
+echo "$SHARE_CONFIG" | sudo tee -a /etc/samba/smb.conf > /dev/null
+print_success "Added share configuration to smb.conf"
 
 # Test Samba configuration
 if sudo testparm -s > /dev/null 2>&1; then
@@ -295,42 +234,20 @@ print_step "Step 4/6: Setting up Samba user"
 
 # Check if system user exists
 if ! id "$SMB_USER" &>/dev/null; then
-    print_error "System user '$SMB_USER' does not exist"
-    if [ -t 0 ]; then
-        read -p "Create system user '$SMB_USER'? (y/N): " -n 1 -r
-    else
-        read -p "Create system user '$SMB_USER'? (y/N): " -n 1 -r < /dev/tty
-    fi
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        sudo useradd -m -s /bin/bash "$SMB_USER"
-        print_success "Created system user: $SMB_USER"
-    else
-        exit 1
-    fi
+    print_info "System user '$SMB_USER' does not exist, creating..."
+    sudo useradd -m -s /bin/bash "$SMB_USER"
+    print_success "Created system user: $SMB_USER"
 fi
 
 # Setup Samba password
 print_info "Setting Samba password for user: $SMB_USER"
-print_warning "You will be prompted to enter the password twice"
-if [ -t 0 ]; then
-    # Script is running interactively
-    if sudo smbpasswd -a "$SMB_USER"; then
-        sudo smbpasswd -e "$SMB_USER" > /dev/null 2>&1
-        print_success "Samba user configured"
-    else
-        print_error "Failed to set Samba password"
-        exit 1
-    fi
+# Use printf to send password twice to smbpasswd
+if printf '%s\n%s\n' "$SMB_PASSWORD" "$SMB_PASSWORD" | sudo smbpasswd -a -s "$SMB_USER"; then
+    sudo smbpasswd -e "$SMB_USER" > /dev/null 2>&1
+    print_success "Samba user configured"
 else
-    # Script is being piped, use stdin redirection
-    if sudo smbpasswd -a "$SMB_USER" < /dev/tty; then
-        sudo smbpasswd -e "$SMB_USER" > /dev/null 2>&1
-        print_success "Samba user configured"
-    else
-        print_error "Failed to set Samba password"
-        exit 1
-    fi
+    print_error "Failed to set Samba password"
+    exit 1
 fi
 
 # Step 5: Configure firewall
