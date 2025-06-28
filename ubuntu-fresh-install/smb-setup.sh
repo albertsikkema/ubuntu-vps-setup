@@ -158,8 +158,8 @@ print_info "Starting Samba setup..."
 
 # Step 1: Install Samba packages
 print_step "Step 1/6: Installing Samba packages"
-sudo apt-get update > /dev/null 2>&1
-if sudo apt-get install -y samba samba-common-bin > /dev/null 2>&1; then
+sudo DEBIAN_FRONTEND=noninteractive apt-get update > /dev/null 2>&1
+if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y samba samba-common-bin > /dev/null 2>&1; then
     print_success "Samba packages installed"
 else
     print_error "Failed to install Samba packages"
@@ -209,10 +209,26 @@ SHARE_CONFIG="
 # Check if share already exists
 if sudo grep -q "\\[$SHARE_NAME\\]" /etc/samba/smb.conf; then
     print_warning "Share [$SHARE_NAME] already exists in smb.conf"
-    print_info "Overwriting existing configuration..."
-    # Remove existing share configuration
-    sudo sed -i "/\\[$SHARE_NAME\\]/,/^\\[/{ /^\\[/!d }" /etc/samba/smb.conf
-    sudo sed -i "/\\[$SHARE_NAME\\]/d" /etc/samba/smb.conf
+    if [ -t 0 ]; then
+        # Running interactively - ask for confirmation
+        read -p "Overwrite existing configuration? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Overwriting existing configuration..."
+            # Remove existing share configuration
+            sudo sed -i "/\\[$SHARE_NAME\\]/,/^\\[/{ /^\\[/!d }" /etc/samba/smb.conf
+            sudo sed -i "/\\[$SHARE_NAME\\]/d" /etc/samba/smb.conf
+        else
+            print_warning "Skipping share configuration - share already exists"
+            exit 0
+        fi
+    else
+        # Running non-interactively (via curl) - automatically overwrite
+        print_info "Overwriting existing configuration..."
+        # Remove existing share configuration
+        sudo sed -i "/\\[$SHARE_NAME\\]/,/^\\[/{ /^\\[/!d }" /etc/samba/smb.conf
+        sudo sed -i "/\\[$SHARE_NAME\\]/d" /etc/samba/smb.conf
+    fi
 fi
 
 # Add share configuration
@@ -241,8 +257,7 @@ fi
 
 # Setup Samba password
 print_info "Setting Samba password for user: $SMB_USER"
-# Use printf to send password twice to smbpasswd
-if printf '%s\n%s\n' "$SMB_PASSWORD" "$SMB_PASSWORD" | sudo smbpasswd -a -s "$SMB_USER"; then
+if printf '%s\n%s\n' "$SMB_PASSWORD" "$SMB_PASSWORD" | sudo smbpasswd -a -s "$SMB_USER" > /dev/null 2>&1; then
     sudo smbpasswd -e "$SMB_USER" > /dev/null 2>&1
     print_success "Samba user configured"
 else
