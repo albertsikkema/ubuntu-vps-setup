@@ -1,6 +1,6 @@
 # Ubuntu Fresh Install Scripts
 
-Two scripts for setting up a fresh Ubuntu 24.04 server with security hardening and Docker. Make sure a user with sudo access is already setup, which is the default for installing Ubuntu Server from the official source: (https://ubuntu.com/download/server)[https://ubuntu.com/download/server].
+Two scripts for setting up a fresh Ubuntu 24.04 server with security hardening and Docker. Make sure a user with sudo access is already setup, which is the default for installing Ubuntu Server from the official source: [https://ubuntu.com/download/server].
 
 ## Quick Start
 
