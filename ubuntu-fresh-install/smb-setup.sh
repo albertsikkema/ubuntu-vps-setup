@@ -72,17 +72,20 @@ Examples:
 What this script does:
   1. Installs Samba packages
   2. Creates share directory with proper permissions
-  3. Configures Samba share in smb.conf
-  4. Sets up Samba user with password
-  5. Configures UFW firewall rules for SMB
-  6. Installs helper management scripts
-  7. Starts and enables Samba services
+  3. Configures SMB3 encryption and security settings
+  4. Configures Samba share in smb.conf
+  5. Sets up Samba user with password
+  6. Configures UFW firewall rules for SMB
+  7. Installs helper management scripts
+  8. Starts and enables Samba services
 
-Security Notes:
-  - SMB can be a security risk if not properly configured
-  - This script configures authenticated access only
-  - Consider using VPN for remote SMB access
-  - Regularly update Samba and monitor access logs
+Security Features:
+  - SMB3 encryption enabled (AES-128) for all traffic
+  - Legacy protocols (SMB1/SMB2) disabled
+  - Message signing enforced
+  - Anonymous access blocked
+  - Authenticated access only
+  - Security logging enabled
 
 After setup, connect to the share:
   - Windows: \\\\server-ip\\share-name
@@ -191,6 +194,46 @@ print_step "Step 3/6: Configuring Samba"
 if [[ ! -f /etc/samba/smb.conf.bak ]]; then
     sudo cp /etc/samba/smb.conf /etc/samba/smb.conf.bak
     print_success "Backed up original smb.conf"
+fi
+
+# Configure global security settings for SMB3 encryption
+print_info "Configuring SMB3 encryption and security settings..."
+GLOBAL_SECURITY_CONFIG="
+# SMB3 Security Configuration
+   # Require SMB3 protocol minimum for encryption
+   server min protocol = SMB3
+   client min protocol = SMB3
+   
+   # Enable encryption for all connections
+   smb encrypt = required
+   
+   # Enhanced security settings
+   server signing = mandatory
+   client signing = mandatory
+   
+   # Disable older, insecure protocols
+   ntlm auth = no
+   lanman auth = no
+   
+   # Additional security
+   restrict anonymous = 2
+   map to guest = Never
+   
+   # Performance optimization with encryption
+   socket options = TCP_NODELAY IPTOS_LOWDELAY
+   
+   # Security logging
+   log file = /var/log/samba/log.%m
+   max log size = 1000
+   log level = 1 auth:3"
+
+# Check if security config already exists
+if ! sudo grep -q "# SMB3 Security Configuration" /etc/samba/smb.conf; then
+    # Add security settings to [global] section
+    sudo sed -i '/\[global\]/a\'"$GLOBAL_SECURITY_CONFIG" /etc/samba/smb.conf
+    print_success "Added SMB3 encryption and security settings"
+else
+    print_info "SMB3 security configuration already present"
 fi
 
 # Create share configuration
@@ -401,6 +444,7 @@ echo "  Share Name: $SHARE_NAME"
 echo "  Share Path: $SHARE_PATH"
 echo "  Username: $SMB_USER"
 echo "  Access: $(if [[ "$READ_ONLY" == true ]]; then echo "Read-only"; else echo "Read/Write"; fi)"
+echo "  Security: SMB3 with AES encryption enabled"
 echo
 
 echo -e "${BLUE}Connect to your share:${NC}"
@@ -421,8 +465,22 @@ echo "  sudo systemctl status smbd   - Check Samba service"
 echo "  sudo nano /etc/samba/smb.conf - Edit configuration"
 echo
 
-print_warning "Security Reminder:"
-echo "  - SMB traffic is not encrypted by default"
-echo "  - Consider using VPN for remote access"
+echo -e "${BLUE}Client Requirements for SMB3 Encryption:${NC}"
+echo "  Windows: Windows 8/Server 2012 or newer"
+echo "  macOS: macOS 10.10 (Yosemite) or newer"
+echo "  Linux: Kernel 3.11+ with SMB3 support"
+echo
+
+echo -e "${BLUE}Verify Encryption is Working:${NC}"
+echo "  Windows: Get-SmbConnection | Select ServerName,Encrypted"
+echo "  Linux: sudo smbstatus -b (look for 'encrypted' flag)"
+echo "  Logs: tail -f /var/log/samba/log.*"
+echo
+
+print_warning "Security Notes:"
+echo "  ✓ SMB3 encryption is now enabled (AES-128)"
+echo "  ✓ Legacy protocols (SMB1/SMB2) are disabled"
+echo "  ✓ Message signing is enforced"
+echo "  - Consider using VPN for internet access"
 echo "  - Regularly check logs: /var/log/samba/"
 echo "  - Keep Samba updated: sudo apt update && sudo apt upgrade"
